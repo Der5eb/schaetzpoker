@@ -12,6 +12,8 @@ import {
 } from '../lib/data'
 import type { Category } from '../lib/types'
 
+const COLOR_NAMES = ['Gold', 'Rot', 'Blau', 'Grün', 'Violett', 'Orange', 'Türkis', 'Pink', 'Oliv', 'Indigo']
+
 export function Categories() {
   const [categories, setCategories] = useState<Category[] | null>(null)
   const [counts, setCounts] = useState<Map<string, number>>(new Map())
@@ -138,14 +140,14 @@ function CategoryEditor({ category, others, count, onRename, onColor, onMerge, o
       <div className="flex flex-col gap-1.5">
         <span className="label">Farbe</span>
         <div className="flex flex-wrap gap-2">
-          {CATEGORY_COLORS.map((color) => (
+          {CATEGORY_COLORS.map((color, i) => (
             <button
               key={color}
               type="button"
-              aria-label={`Farbe ${color}`}
+              aria-label={`Farbe ${COLOR_NAMES[i] ?? i + 1}`}
               onClick={() => onColor(color)}
               aria-pressed={category.color === color}
-              className={`size-9 rounded-full ring-offset-2 ring-offset-felt-850 transition-transform hover:scale-110 ${category.color === color ? 'ring-2 ring-cream-50' : ''}`}
+              className={`size-11 rounded-full ring-offset-2 ring-offset-felt-850 transition-transform hover:scale-110 ${category.color === color ? 'ring-2 ring-cream-50' : ''}`}
               style={{ background: color }}
             />
           ))}

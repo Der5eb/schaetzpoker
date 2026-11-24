@@ -44,7 +44,7 @@ export function BlindEditor({ levels, perLevel, onChange, currentLevel }: Props)
         </span>
       </label>
 
-      <div className="grid grid-cols-[4.5rem_1fr_1fr_2.25rem] items-center gap-x-2 gap-y-1.5">
+      <div className="grid grid-cols-[4.5rem_1fr_1fr_2.75rem] items-center gap-x-2 gap-y-1.5">
         <span className="px-1 text-xs font-medium tracking-wide text-cream-400">Stufe</span>
         <span className="pr-3 text-right text-xs font-medium tracking-wide text-cream-400">Small</span>
         <span className="pr-3 text-right text-xs font-medium tracking-wide text-cream-400">Big</span>
@@ -85,7 +85,7 @@ export function BlindEditor({ levels, perLevel, onChange, currentLevel }: Props)
                 <button
                   type="button"
                   aria-label="Letzte Stufe entfernen"
-                  className="grid size-9 place-items-center rounded-full text-cream-400 transition-colors hover:bg-white/5 hover:text-cream-50"
+                  className="grid size-11 place-items-center rounded-full text-cream-400 transition-colors hover:bg-white/5 hover:text-cream-50"
                   onClick={() => onChange(levels.slice(0, -1), perLevel)}
                 >
                   <Icon name="x" className="size-4" />
@@ -100,10 +100,10 @@ export function BlindEditor({ levels, perLevel, onChange, currentLevel }: Props)
 
       <button
         type="button"
-        className="btn btn-ghost self-start px-3.5 py-2 text-sm font-medium"
+        className="btn btn-ghost min-h-11 self-start px-3.5 py-2 text-sm font-medium"
         onClick={() => onChange([...levels, suggestNext(levels)], perLevel)}
       >
-        <Icon name="plus" className="size-4 text-gold-300" /> Stufe {formatBlinds(suggestNext(levels))}
+        <Icon name="plus" className="size-4 text-gold-300" /> Stufe hinzufügen ({formatBlinds(suggestNext(levels))})
       </button>
     </div>
   )

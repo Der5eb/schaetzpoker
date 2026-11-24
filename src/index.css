@@ -29,8 +29,8 @@
   --color-cream-50: #fbf7ec;
   --color-cream-100: #f1e8d3;
   --color-cream-200: #e4d8bb;
-  --color-cream-300: #c9bea2;
-  --color-cream-400: #a1987f;
+  --color-cream-300: #d3c9ae;
+  --color-cream-400: #c2b9a0;
 
   /* Chips */
   --color-chip-red: #c23b33;
@@ -56,7 +56,7 @@
 :root {
   --felt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   --felt-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.45 1.1' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.5 -.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --felt-base: radial-gradient(130% 90% at 50% -15%, rgb(255 226 160 / 0.11), transparent 58%),
+  --felt-base: radial-gradient(130% 90% at 50% -15%, rgb(255 226 160 / 0.08), transparent 58%),
     radial-gradient(150% 120% at 50% 35%, #154633 0%, #0b2219 52%, #05120c 100%);
   color-scheme: dark;
 }

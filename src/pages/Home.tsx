@@ -81,7 +81,7 @@ export function Home() {
         <span className="truncate">{session?.user.email}</span>
         <button
           onClick={() => supabase?.auth.signOut()}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5 hover:text-cream-100"
+          className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 transition-colors hover:bg-white/5 hover:text-cream-100"
         >
           <Icon name="signOut" className="size-4" /> Abmelden
         </button>

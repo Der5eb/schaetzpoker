@@ -47,6 +47,8 @@ export interface DisplayState {
   untilIncrease: number
   previousBlinds: BlindLevel | null
   categories: { id: string; name: string; color: string; count: number }[]
+  /** Vom Big Blind gewählte Kategorie, solange die Spielleitung die Frage aussucht */
+  pickedCategory: string | null
   category: { name: string; color: string } | null
   question: DisplayBlock | null
   hints: DisplayBlock[]

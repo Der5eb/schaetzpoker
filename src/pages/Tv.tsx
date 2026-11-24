@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { ChipMark } from '../components/ChipMark'
 import { ChipStack } from '../components/ChipStack'
 import { Icon, type IconName } from '../components/Icon'
@@ -113,6 +113,55 @@ export function Tv() {
   )
 }
 
+/** Wartet, bis die Einblend-Animationen der Szene fertig sind (Endlos-Animationen zählen nicht). */
+function afterSceneAnimations(el: Element): Promise<void> {
+  const scene = el.closest('main') ?? document.body
+  const running = scene
+    .getAnimations({ subtree: true })
+    .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+    .map((a) => a.finished.catch(() => undefined))
+  return Promise.all(running).then(() => undefined)
+}
+
+/** Effektiver CSS-zoom (Produkt aller Vorfahren) – für Verschiebungen in Bildschirm-Pixeln */
+function effectiveZoom(el: Element): number {
+  let z = 1
+  for (let n: Element | null = el; n; n = n.parentElement) z *= parseFloat(getComputedStyle(n).zoom) || 1
+  return z
+}
+
+/**
+ * Passt Inhalt in den verfügbaren Platz: Ist `content` höher als `container`,
+ * wird er per CSS-zoom stufenlos verkleinert (min. 45 %). Reagiert auf Größenänderungen
+ * und nachladende Bilder.
+ */
+function useFitZoom(container: RefObject<HTMLElement | null>, content: RefObject<HTMLElement | null>, key: string) {
+  useLayoutEffect(() => {
+    const box = container.current
+    const inner = content.current
+    if (!box || !inner) return
+    const fit = () => {
+      inner.style.zoom = '1'
+      const avail = box.getBoundingClientRect().height
+      let z = 1
+      for (let i = 0; i < 4; i++) {
+        const h = inner.getBoundingClientRect().height
+        if (h <= avail + 1) break
+        z = Math.max(0.45, z * (avail / h) * 0.98)
+        inner.style.zoom = String(z)
+      }
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(box)
+    inner.addEventListener('load', fit, true)
+    return () => {
+      ro.disconnect()
+      inner.removeEventListener('load', fit, true)
+    }
+  }, [container, content, key])
+}
+
 /** Medium zu einem Schlüssel aus der aktuellen Anzeige */
 function findMedia(d: DisplayState, key: string) {
   const [part, index] = key.split('-')
@@ -139,12 +188,7 @@ function useMediaZoom(focus: string | null, sceneKey: string) {
     let undo: (() => void) | undefined
 
     // Erst zoomen, wenn die Szene fertig eingeblendet ist (sonst stimmen Position und Ebenen nicht)
-    const scene = figure.closest('main') ?? document.body
-    const running = scene
-      .getAnimations({ subtree: true })
-      .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-      .map((a) => a.finished.catch(() => undefined))
-    Promise.all(running).then(() => {
+    afterSceneAnimations(figure).then(() => {
       if (!cancelled) undo = zoom(figure, media)
     })
 
@@ -168,9 +212,10 @@ function zoom(figure: HTMLElement, media: HTMLElement): () => void {
   figure.style.zIndex = '50'
 
   const r = media.getBoundingClientRect()
+  const z = effectiveZoom(media) // eingepasste Szenen sind per zoom verkleinert
   const scale = Math.min((window.innerWidth * 0.86) / r.width, (window.innerHeight * 0.78) / r.height)
-  const dx = window.innerWidth / 2 - (r.left + r.width / 2)
-  const dy = window.innerHeight / 2 - (r.top + r.height / 2) - window.innerHeight * 0.02
+  const dx = (window.innerWidth / 2 - (r.left + r.width / 2)) / z
+  const dy = (window.innerHeight / 2 - (r.top + r.height / 2) - window.innerHeight * 0.02) / z
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   media.style.transition = reduce ? 'none' : 'transform 0.75s var(--ease-out-expo), box-shadow 0.75s'
@@ -246,9 +291,12 @@ function TopBar({ d }: { d: DisplayState }) {
       <div className="flex flex-col items-end gap-[0.3vh]">
         <span className="flex items-center gap-[0.5em]">
           <ChipMark className="size-[1.7em] drop-shadow-[0_0.3vh_0.6vh_rgba(0,0,0,0.6)]" />
-          <span className="font-display text-[1.5em] leading-none font-extrabold text-cream-50 tabular-nums">{formatBlinds(d.blinds)}</span>
+          <span className="font-display text-[1.5em] leading-none font-extrabold text-cream-50 tabular-nums">
+            {/* In der Blind-Szene erst die alten Blinds zeigen – die neuen enthüllt die Szene selbst */}
+            {formatBlinds(d.phase === 'blinds' && d.previousBlinds ? d.previousBlinds : d.blinds)}
+          </span>
         </span>
-        {d.phase !== 'blinds' && <span className="text-[0.72em] text-cream-400">{increaseText}</span>}
+        {d.phase !== 'blinds' && <span className="text-[0.85em] font-medium text-cream-200">{increaseText}</span>}
       </div>
     </header>
   )
@@ -284,7 +332,7 @@ function Waiting({ code, pairUrl }: { code: string; pairUrl: string }) {
           <Qr value={pairUrl} className="size-[30vh] overflow-hidden rounded-[0.6vw] [&>svg]:size-full" />
         </div>
         <div className="flex flex-col items-start gap-[2vh] text-left">
-          <p className="max-w-[26vw] text-[clamp(1rem,1.5vw,2rem)] leading-snug text-cream-300">
+          <p className="max-w-[26vw] text-[clamp(1rem,1.5vw,2rem)] leading-snug text-cream-100">
             Spielleitung: QR-Code mit dem Handy scannen oder diesen Code eingeben
           </p>
           <p className="font-display text-[clamp(2.5rem,5.5vw,7rem)] leading-none font-extrabold tracking-[0.18em] text-gold-200">{code}</p>
@@ -309,45 +357,112 @@ function Lobby({ d }: { d: DisplayState }) {
 
 function CategoryPick({ d }: { d: DisplayState }) {
   const n = d.categories.length
+  const picked = d.pickedCategory
+  const box = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLUListElement>(null)
+  useFitZoom(box, content, `${n}`)
+
+  // Gewählte Karte in die Mitte holen, die anderen vom Tisch fegen
+  useEffect(() => {
+    const ul = list.current
+    if (!ul || !picked) return
+    const cards = [...ul.querySelectorAll<HTMLElement>('[data-category-id]')]
+    let cancelled = false
+    afterSceneAnimations(ul).then(() => {
+      if (cancelled) return
+      cards.forEach((el, i) => {
+        el.style.transition = 'transform 0.85s var(--ease-out-expo), opacity 0.6s ease'
+        if (el.dataset.categoryId === picked) {
+          const r = el.getBoundingClientRect()
+          const z = effectiveZoom(el)
+          const scale = Math.min(2, (window.innerHeight * 0.58) / r.height)
+          const dx = (window.innerWidth / 2 - (r.left + r.width / 2)) / z
+          const dy = (window.innerHeight * 0.58 - (r.top + r.height / 2)) / z
+          el.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`
+          el.style.zIndex = '10'
+        } else {
+          const side = i % 2 ? 1 : -1
+          el.style.transform = `translate(${side * 12}vw, 85vh) rotate(${side * 28}deg)`
+          el.style.opacity = '0'
+        }
+      })
+    })
+    return () => {
+      cancelled = true
+      cards.forEach((el) => {
+        el.style.transform = ''
+        el.style.opacity = ''
+        el.style.zIndex = ''
+      })
+    }
+  }, [picked])
+
+  // Kartenbreite nach Anzahl – bei vielen Kategorien kleiner
+  const width = n <= 5 ? 'w-[clamp(9rem,15vw,20rem)]' : n <= 8 ? 'w-[clamp(8rem,12vw,16rem)]' : 'w-[clamp(7rem,10vw,13rem)]'
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-center gap-[6vh]">
-      <h1 className="text-center font-display text-[clamp(2.2rem,4.4vw,5.6rem)] leading-tight font-extrabold text-cream-50">
-        Der Big Blind wählt <em className="font-normal text-gold-200 italic">eine Kategorie</em>
-      </h1>
-      {n === 0 ? (
-        <p className="text-center text-[2vw] text-cream-300">Keine spielbereiten Fragen mehr.</p>
-      ) : (
-        <ul className="mx-auto flex w-full max-w-[88vw] flex-wrap justify-center gap-[2vw]">
-          {d.categories.map((c, i) => {
-            const rest = ((i % 3) - 1) * 1.6
-            return (
-              <li
-                key={c.id}
-                className="playing-card animate-deal flex aspect-[5/7] w-[clamp(9rem,15vw,20rem)] flex-col justify-between p-[1.4vw]"
-                style={
-                  {
-                    '--deal-x': `${(n / 2 - i) * 9}vw`,
-                    '--deal-r': `${-20 + i * 7}deg`,
-                    '--rest-r': `${rest}deg`,
-                    animationDelay: `${150 + i * 110}ms`,
-                  } as CSSProperties
-                }
-              >
-                <span className="flex items-center gap-[0.5vw]">
-                  <span className="size-[1.3vw] rounded-full shadow-inner" style={{ background: c.color }} />
-                </span>
-                <span className="text-center font-display text-[clamp(1.2rem,2.1vw,2.9rem)] leading-tight font-extrabold text-balance text-ink">
-                  {c.name}
-                </span>
-                <span className="flex items-center justify-end gap-[0.4vw] text-[clamp(0.85rem,1.1vw,1.4rem)] text-ink-soft">
-                  <span className="font-display font-extrabold tabular-nums">{c.count}</span> {c.count === 1 ? 'Frage' : 'Fragen'}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+    <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center">
+      <div ref={content} className="flex flex-col gap-[6vh]">
+        <h1
+          key={picked ? 'picked' : 'choose'}
+          className="animate-enter text-center font-display text-[clamp(2.2rem,4.4vw,5.6rem)] leading-tight font-extrabold text-cream-50"
+        >
+          {picked ? (
+            <>
+              Die Spielleitung wählt <em className="font-normal text-gold-200 italic">eine Frage …</em>
+            </>
+          ) : (
+            <>
+              Der Big Blind wählt <em className="font-normal text-gold-200 italic">eine Kategorie</em>
+            </>
+          )}
+        </h1>
+        {n === 0 ? (
+          <p className="text-center text-[2vw] text-cream-300">Keine spielbereiten Fragen mehr.</p>
+        ) : (
+          <ul ref={list} className="mx-auto flex w-full max-w-[90vw] flex-wrap justify-center gap-[1.8vw]">
+            {d.categories.map((c, i) => {
+              const rest = ((i % 3) - 1) * 1.6
+              return (
+                <li
+                  key={c.id}
+                  data-category-id={c.id}
+                  className={`playing-card animate-deal @container relative flex aspect-[5/7] ${width} flex-col items-center justify-center px-[0.9vw] py-[2.4vh]`}
+                  style={
+                    {
+                      '--deal-x': `${(n / 2 - i) * 9}vw`,
+                      '--deal-r': `${-20 + i * 7}deg`,
+                      '--rest-r': `${rest}deg`,
+                      animationDelay: `${150 + i * 110}ms`,
+                    } as CSSProperties
+                  }
+                >
+                  <CardIndex color={c.color} count={c.count} className="absolute top-[6%] left-[8%]" />
+                  <CardIndex color={c.color} count={c.count} className="absolute right-[8%] bottom-[6%] rotate-180" />
+                  <span lang="de" className="w-full text-center font-display text-[16cqi] leading-[1.1] font-extrabold text-balance break-words hyphens-auto text-ink">
+                    {c.name}
+                  </span>
+                  <span className="mt-[5cqi] text-[8.5cqi] font-medium text-ink-soft">
+                    {c.count} {c.count === 1 ? 'Frage' : 'Fragen'}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </div>
+  )
+}
+
+/** Eckindex wie auf einer Spielkarte: Anzahl + Kategoriefarbe */
+function CardIndex({ color, count, className = '' }: { color: string; count: number; className?: string }) {
+  return (
+    <span className={`flex flex-col items-center gap-[0.3vh] leading-none ${className}`}>
+      <span className="font-display text-[11cqi] font-black text-ink tabular-nums">{count}</span>
+      <span className="size-[7cqi] rotate-45 rounded-[0.15vw] ring-1 ring-black/15" style={{ background: color }} />
+    </span>
   )
 }
 
@@ -369,7 +484,7 @@ function Round({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
               <li
                 key={s.label}
                 className={`flex items-center gap-[0.4em] rounded-full px-[0.9vw] py-[0.5vh] transition-colors duration-500 ${
-                  i === d.reveal ? 'bg-gold-300 text-felt-950' : i < d.reveal ? 'text-cream-200' : 'text-cream-400/45'
+                  i === d.reveal ? 'bg-gold-300 text-felt-950' : i < d.reveal ? 'text-cream-100' : 'text-cream-300/75'
                 }`}
               >
                 <Icon name={s.icon} weight="fill" className="size-[0.95em]" />
@@ -391,8 +506,12 @@ function Round({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
 
 function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
   const hasHints = d.hints.length > 0
+  const box = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
+  useFitZoom(box, content, `${d.reveal}-${d.question?.text}`)
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-center gap-[4vh]">
+    <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center">
+      <div ref={content} className="flex flex-col gap-[4vh]">
       <div className="flex flex-col items-center gap-[2.5vh] text-center">
         <h1
           className={`max-w-[84vw] font-display leading-[1.08] font-extrabold text-cream-50 drop-shadow-[0_0.4vh_1vh_rgba(0,0,0,0.45)] transition-[font-size] duration-700 ease-[var(--ease-out-expo)] ${
@@ -433,14 +552,19 @@ function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistr
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
 
 function Solution({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
   const a = d.answer!
+  const box = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
+  useFitZoom(box, content, `${a.display}-${a.explanation.text}`)
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] text-center">
+    <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center">
+      <div ref={content} className="flex flex-col items-center gap-[3.5vh] text-center">
       <p className="max-w-[78vw] font-display text-[clamp(1.1rem,2vw,2.6rem)] leading-snug text-cream-300">{d.question?.text}</p>
 
       {/* Die Lösung als Karte, die umgedreht wird */}
@@ -461,6 +585,7 @@ function Solution({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
         </p>
       )}
       <MediaGallery media={a.explanation.media} keyFor={mediaKey.answer} registry={videos} size="sm" className="animate-enter [animation-delay:1700ms]" />
+      </div>
     </div>
   )
 }

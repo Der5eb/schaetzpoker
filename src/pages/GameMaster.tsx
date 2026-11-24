@@ -4,6 +4,8 @@ import { BlindEditor } from '../components/BlindEditor'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
+import { HoldButton } from '../components/HoldButton'
+import { Peek } from '../components/Peek'
 import { ActionBar } from '../components/Shell'
 import { blindInfo, formatBlinds } from '../game/blinds'
 import { availableQuestions, buildDisplay, isZoomable, mediaKey } from '../game/display'
@@ -16,6 +18,7 @@ import type { Category, Game, Media, Question } from '../lib/types'
 import { youTubeThumbnail } from '../lib/youtube'
 
 const REVEAL_LABELS = ['Hinweis 1 aufdecken', 'Hinweis 2 aufdecken', 'Lösung aufdecken']
+const NEXT_LABELS = ['Hinweis 1', 'Hinweis 2', 'die Lösung']
 
 export function GameMaster() {
   const { id } = useParams()
@@ -25,7 +28,6 @@ export function GameMaster() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [pickedCategory, setPickedCategory] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -85,7 +87,6 @@ export function GameMaster() {
       const completed = s.completed + 1
       const levelUp = completed % Math.max(1, game.questions_per_level) === 0
       await setState({ phase: levelUp ? 'blinds' : 'category', completed, questionId: null, categoryId: null, reveal: 0, decided: false })
-      setPickedCategory(null)
     } catch (e) {
       console.error(e)
       setError('Runde konnte nicht abgeschlossen werden.')
@@ -147,8 +148,8 @@ export function GameMaster() {
         <CategoryStep
           categories={categories}
           available={available}
-          picked={pickedCategory}
-          onPick={setPickedCategory}
+          picked={s.categoryId}
+          onPick={(categoryId) => setState({ categoryId })}
           onStart={(q) => setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })}
         />
       )}
@@ -199,34 +200,50 @@ export function GameMaster() {
           )}
 
           <ActionBar>
-            <button
-              type="button"
-              className="btn btn-primary w-full py-4 text-lg"
+            <p className="flex items-center justify-center gap-1.5 text-center text-xs font-medium text-cream-300">
+              {s.reveal < 3 ? (
+                <>
+                  <Icon name="tv" className="size-3.5 text-gold-300" /> Als Nächstes am TV: <span className="text-cream-50">{NEXT_LABELS[s.reveal]}</span>
+                </>
+              ) : (
+                'Beenden markiert die Frage als gespielt'
+              )}
+            </p>
+            <HoldButton
+              className="btn btn-primary w-full py-3 text-lg"
               disabled={busy}
-              onClick={() => (s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound())}
+              onConfirm={() => (s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound())}
             >
               <Icon name={s.reveal < 3 ? 'eye' : 'flag'} weight="duotone" className="size-6" />
               {s.reveal < 3 ? REVEAL_LABELS[s.reveal] : 'Runde beenden'}
-            </button>
+            </HoldButton>
             <div className="flex gap-2">
               {s.reveal > 0 && (
-                <button type="button" className="btn btn-ghost flex-1 py-2.5 text-sm" onClick={() => setState({ reveal: s.reveal - 1, decided: false })}>
-                  <Icon name="restart" className="size-4" /> Zurück
+                <button
+                  type="button"
+                  className="btn btn-ghost min-h-11 flex-1 py-2.5 text-sm"
+                  onClick={() => setState({ reveal: s.reveal - 1, decided: false })}
+                >
+                  <Icon name="eyeOff" className="size-4" /> Wieder verdecken
                 </button>
               )}
               {s.reveal === 0 && (
                 <button
                   type="button"
-                  className="btn btn-ghost flex-1 py-2.5 text-sm"
-                  onClick={() => setState({ phase: 'category', questionId: null, categoryId: null })}
+                  className="btn btn-ghost min-h-11 flex-1 py-2.5 text-sm"
+                  onClick={() => setState({ phase: 'category', questionId: null })}
                 >
                   <Icon name="shuffle" className="size-4" /> Andere Frage
                 </button>
               )}
               {s.reveal < 3 && (
-                <button type="button" className="btn btn-ghost flex-1 py-2.5 text-sm" onClick={() => setState({ reveal: 3, decided: true })}>
+                <HoldButton
+                  className="btn btn-ghost flex-1 py-1.5 text-sm"
+                  fill="rgb(209 164 70 / 0.3)"
+                  onConfirm={() => setState({ reveal: 3, decided: true })}
+                >
                   <Icon name="crown" className="size-4" /> Nur 1 Spieler übrig
-                </button>
+                </HoldButton>
               )}
             </div>
           </ActionBar>
@@ -258,7 +275,7 @@ export function GameMaster() {
       {s.phase === 'ended' && <p className="text-cream-300">Dieser Spielabend ist beendet.</p>}
 
       {s.phase !== 'round' && s.phase !== 'ended' && (
-        <div className="mt-12 flex flex-col gap-2.5">
+        <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && s.categoryId ? 'pb-44' : ''}`}>
           <Collapsible title="Blinds anpassen" icon="stack">
             <BlindEditor
               levels={game.blind_levels}
@@ -371,6 +388,7 @@ function CategoryStep({
   onPick: (id: string | null) => void
   onStart: (q: Question) => void
 }) {
+  const [selected, setSelected] = useState<string | null>(null)
   const withQuestions = categories
     .map((c) => ({ c, qs: available.filter((q) => q.category_id === c.id) }))
     .filter((x) => x.qs.length > 0)
@@ -378,12 +396,16 @@ function CategoryStep({
   if (picked) {
     const entry = withQuestions.find((x) => x.c.id === picked)
     const qs = entry?.qs ?? []
+    const chosen = qs.find((q) => q.id === selected)
     return (
       <div className="animate-enter flex flex-col gap-3">
         <button
           type="button"
-          className="-ml-1 flex items-center gap-1 self-start rounded-lg px-1 py-1 text-sm text-cream-300 hover:text-cream-50"
-          onClick={() => onPick(null)}
+          className="-ml-1 flex min-h-11 items-center gap-1 self-start rounded-lg px-1 text-sm text-cream-300 hover:text-cream-50"
+          onClick={() => {
+            setSelected(null)
+            onPick(null)
+          }}
         >
           <Icon name="back" className="size-4" /> Andere Kategorie
         </button>
@@ -391,27 +413,61 @@ function CategoryStep({
           <span className="size-3.5 rounded-full ring-4 ring-black/20" style={{ background: entry?.c.color }} />
           {entry?.c.name}
         </h2>
-        <p className="flex items-center gap-1.5 text-sm text-cream-400">
+        <p className="flex items-center gap-1.5 text-sm text-cream-300">
           <Icon name="eyeOff" className="size-4" /> Welche Frage wird gespielt? Nur du siehst diese Liste.
         </p>
-        <ul className="flex flex-col gap-2.5">
-          {qs.map((q, i) => (
-            <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}>
-              <button type="button" className="card flex w-full flex-col gap-1.5 px-4 py-3.5 text-left" onClick={() => onStart(q)}>
-                <span className="flex items-start justify-between gap-3">
-                  <span className="font-display text-xl leading-snug font-extrabold text-cream-50">{q.title}</span>
-                  <span className="shrink-0 pt-0.5 font-display font-extrabold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
-                </span>
-                <span className="line-clamp-2 text-sm text-cream-300">{q.question}</span>
-              </button>
-            </li>
-          ))}
+        <ul className="flex flex-col gap-2.5" role="radiogroup" aria-label="Frage auswählen">
+          {qs.map((q, i) => {
+            const isSel = q.id === selected
+            return (
+              <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isSel}
+                  className={`card flex w-full items-start gap-3 px-4 py-3.5 text-left ${isSel ? 'border-gold-300/80! bg-gold-400/10' : ''}`}
+                  onClick={() => setSelected(isSel ? null : q.id)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`mt-1 grid size-5 shrink-0 place-items-center rounded-full border-2 transition-colors ${
+                      isSel ? 'border-gold-300 bg-gold-300 text-felt-950' : 'border-cream-400'
+                    }`}
+                  >
+                    {isSel && <Icon name="check" weight="bold" className="size-3" />}
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span className="font-display text-xl leading-snug font-extrabold text-cream-50">{q.title}</span>
+                    <span className="line-clamp-2 text-sm text-cream-300">{q.question}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
         {qs.length > 1 && (
-          <button type="button" className="btn btn-ghost mt-1" onClick={() => onStart(qs[Math.floor(Math.random() * qs.length)])}>
-            <Icon name="shuffle" className="size-4 text-gold-300" /> Zufällige Frage
+          <button
+            type="button"
+            className="btn btn-ghost mt-1 min-h-11"
+            onClick={() => setSelected(qs[Math.floor(Math.random() * qs.length)].id)}
+          >
+            <Icon name="shuffle" className="size-4 text-gold-300" /> Zufällig auswählen
           </button>
         )}
+        <ActionBar>
+          <p className="text-center text-xs font-medium text-cream-300">
+            {chosen ? (
+              <>
+                Ausgewählt: <span className="text-cream-50">{chosen.title}</span>
+              </>
+            ) : (
+              'Tippe eine Frage an, um sie auszuwählen'
+            )}
+          </p>
+          <HoldButton className="btn btn-primary w-full py-3 text-lg" disabled={!chosen} onConfirm={() => chosen && onStart(chosen)}>
+            <Icon name="tv" weight="duotone" className="size-6" /> Frage am TV stellen
+          </HoldButton>
+        </ActionBar>
       </div>
     )
   }
@@ -425,16 +481,21 @@ function CategoryStep({
       <ul className="grid grid-cols-2 gap-2.5">
         {withQuestions.map(({ c, qs }, i) => (
           <li key={c.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
-            <button type="button" onClick={() => onPick(c.id)} className="card relative flex h-full w-full flex-col items-start gap-1 overflow-hidden px-4 pt-5 pb-3.5 text-left">
+            <button
+              type="button"
+              onClick={() => onPick(c.id)}
+              className="card relative flex h-full min-h-20 w-full flex-col items-start gap-1 overflow-hidden px-4 pt-5 pb-3.5 text-left"
+            >
               <span className="absolute inset-x-0 top-0 h-1" style={{ background: c.color }} />
               <span className="font-display text-xl leading-tight font-extrabold text-cream-50">{c.name}</span>
-              <span className="text-sm text-cream-400">
+              <span className="text-sm text-cream-300">
                 {qs.length} {qs.length === 1 ? 'Frage' : 'Fragen'}
               </span>
             </button>
           </li>
         ))}
       </ul>
+      <p className="text-xs text-cream-300">Die gewählte Kategorie wird am TV hervorgehoben.</p>
     </div>
   )
 }
@@ -479,8 +540,9 @@ function Block({
           {shown ? 'am TV' : 'verdeckt'}
         </span>
       </div>
+      <Peek hidden={!shown}>
       {highlight && <p className="font-display text-4xl font-extrabold text-gold-200 tabular-nums">{highlight}</p>}
-      {text && <p className={`leading-relaxed whitespace-pre-wrap ${shown ? 'text-cream-50' : 'text-cream-200'}`}>{text}</p>}
+      {text && <p className="leading-relaxed whitespace-pre-wrap text-cream-50">{text}</p>}
       {media.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
           {media.map((m, i) => {
@@ -547,6 +609,7 @@ function Block({
           })}
         </ul>
       )}
+      </Peek>
     </section>
   )
 }
@@ -558,7 +621,7 @@ function VideoButton({ label, icon, onClick }: { label: string; icon: IconName; 
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="grid size-10 place-items-center rounded-xl border border-white/10 text-cream-100 transition-colors hover:border-gold-400/60 active:scale-95"
+      className="grid size-11 place-items-center rounded-xl border border-white/10 text-cream-100 transition-colors hover:border-gold-400/60 active:scale-95"
     >
       <Icon name={icon} weight="fill" className="size-4" />
     </button>

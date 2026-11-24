@@ -77,6 +77,7 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <input
               className="field py-2 text-sm"
+              aria-label={m.type === 'image' ? `Bildunterschrift ${i + 1}` : `Beschreibung Video ${i + 1}`}
               placeholder={m.type === 'image' ? 'Bildunterschrift (optional)' : 'Beschreibung (optional)'}
               value={m.caption ?? ''}
               onChange={(e) => update(i, { caption: e.target.value })}
@@ -91,8 +92,8 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
           <button
             type="button"
             onClick={() => remove(i)}
-            aria-label="Entfernen"
-            className="grid size-9 shrink-0 place-items-center self-start rounded-full text-cream-400 transition-colors hover:bg-white/5 hover:text-cream-50"
+            aria-label={m.type === 'image' ? `Bild ${i + 1} entfernen` : `Video ${i + 1} entfernen`}
+            className="grid size-11 shrink-0 place-items-center self-start rounded-full text-cream-400 transition-colors hover:bg-white/5 hover:text-cream-50"
           >
             <Icon name="x" className="size-4" />
           </button>
@@ -116,10 +117,10 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
         />
       ) : (
         <div className="flex gap-2">
-          <button type="button" className="btn btn-ghost px-3 py-2 text-sm font-medium text-cream-200" onClick={() => fileInput.current?.click()}>
+          <button type="button" className="btn btn-ghost min-h-11 px-3.5 py-2 text-sm font-medium text-cream-200" onClick={() => fileInput.current?.click()}>
             <Icon name="image" weight="duotone" className="size-[1.1rem] text-gold-300" /> Bild
           </button>
-          <button type="button" className="btn btn-ghost px-3 py-2 text-sm font-medium text-cream-200" onClick={() => setYtOpen(true)}>
+          <button type="button" className="btn btn-ghost min-h-11 px-3.5 py-2 text-sm font-medium text-cream-200" onClick={() => setYtOpen(true)}>
             <Icon name="youtube" weight="duotone" className="size-[1.1rem] text-gold-300" /> YouTube
           </button>
           <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => addFiles(e.target.files)} />
@@ -168,6 +169,7 @@ function YouTubeForm({ onAdd, onCancel }: { onAdd: (m: Media) => void; onCancel:
       <input
         className="field"
         placeholder="YouTube-Link einfügen"
+        aria-label="YouTube-Link"
         inputMode="url"
         autoFocus
         value={url}

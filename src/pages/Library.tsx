@@ -154,18 +154,18 @@ export function Library() {
             role="tab"
             aria-selected={status === s}
             onClick={() => setStatus(s)}
-            className={`relative rounded-lg py-2 font-medium transition-colors ${status === s ? 'text-cream-50' : 'text-cream-400 hover:text-cream-100'}`}
+            className={`relative min-h-11 rounded-lg py-2 font-medium transition-colors ${status === s ? 'text-cream-50' : 'text-cream-400 hover:text-cream-100'}`}
           >
             {STATUS_LABELS[s]}
           </button>
         ))}
       </div>
 
-      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      <div className={`-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] ${questions ? '' : 'invisible'}`}>
         <Chip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')}>
           Alle <Count n={total} />
         </Chip>
-        {categories.map((c) => (
+        {categories.filter((c) => (counts.get(c.id) ?? 0) > 0 || categoryFilter === c.id).map((c) => (
           <Chip key={c.id} active={categoryFilter === c.id} onClick={() => setCategoryFilter(c.id)}>
             <span className="size-2 rounded-full" style={{ background: c.color }} />
             {c.name} <Count n={counts.get(c.id) ?? 0} />
@@ -256,7 +256,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
         active ? 'border-gold-400/70 bg-gold-400/15 text-cream-50' : 'border-white/10 text-cream-300 hover:border-white/20 hover:text-cream-100'
       }`}
     >
