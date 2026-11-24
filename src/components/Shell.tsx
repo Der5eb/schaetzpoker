@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Icon } from './Icon'
 
@@ -40,11 +41,21 @@ export function SectionTitle({ children, hint }: { children: ReactNode; hint?: R
   )
 }
 
-/** Feste Leiste unten für die Hauptaktion einer Seite. */
+/**
+ * Am Bildschirm fixiertes Element. Wird direkt in <body> gerendert, damit
+ * Einblend-Animationen (transform/filter) der Seite es nicht einsperren.
+ */
+export function Fixed({ children }: { children: ReactNode }) {
+  return createPortal(children, document.body)
+}
+
+/** Hauptaktion unten – ohne Kasten, nur ein weicher Verlauf in den Filz. */
 export function ActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/[0.06] bg-felt-950/80 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
-      <div className="mx-auto flex max-w-xl flex-col gap-2">{children}</div>
-    </div>
+    <Fixed>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-felt-950 via-felt-950/85 to-transparent px-4 pt-10 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto mx-auto flex max-w-xl flex-col gap-2">{children}</div>
+      </div>
+    </Fixed>
   )
 }

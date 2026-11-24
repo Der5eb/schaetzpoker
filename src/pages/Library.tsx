@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { Icon } from '../components/Icon'
-import { Shell } from '../components/Shell'
+import { Fixed, Shell } from '../components/Shell'
 import { ensureCategory, fetchCategories, fetchQuestions, suggestMeta, toInput, updateQuestion } from '../lib/data'
 import { fallbackTitle, formatAnswer } from '../lib/format'
 import type { Category, Question } from '../lib/types'
@@ -233,15 +233,17 @@ export function Library() {
         })}
       </ul>
 
-      <Link
-        to="/erfassen"
-        aria-label="Neue Frage"
-        className="group fixed right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20 grid size-16 place-items-center rounded-full text-felt-950 shadow-[0_14px_30px_-10px_rgb(0_0_0/0.9)] transition-transform active:scale-95"
-        style={{ background: 'radial-gradient(circle at 35% 30%, #f6e3ad, #d1a446 55%, #a57a28)' }}
-      >
-        <span className="absolute inset-[5px] rounded-full border-2 border-dashed border-cream-50/60 transition-transform duration-500 group-hover:rotate-45" />
-        <Icon name="plus" weight="bold" className="relative size-7" />
-      </Link>
+      <Fixed>
+        <Link
+          to="/erfassen"
+          aria-label="Neue Frage"
+          className="group fixed right-[max(1.25rem,calc((100vw-36rem)/2+1rem))] bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20 grid size-16 place-items-center rounded-full text-felt-950 shadow-[0_14px_30px_-10px_rgb(0_0_0/0.9)] transition-transform active:scale-95"
+          style={{ background: 'radial-gradient(circle at 35% 30%, #f6e3ad, #d1a446 55%, #a57a28)' }}
+        >
+          <span className="absolute inset-[5px] rounded-full border-2 border-dashed border-cream-50/60 transition-transform duration-500 group-hover:rotate-45" />
+          <Icon name="plus" weight="bold" className="relative size-7" />
+        </Link>
+      </Fixed>
     </Shell>
   )
 }
