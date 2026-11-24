@@ -58,22 +58,25 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
   return (
     <div className="flex flex-col gap-3">
       {value.map((m, i) => (
-        <div key={m.type === 'image' ? m.path : `${m.videoId}-${i}`} className="flex gap-3 rounded-lg border border-felt-700 bg-felt-900/60 p-2">
-          <div className="relative size-20 shrink-0 overflow-hidden rounded-md bg-felt-950">
+        <div
+          key={m.type === 'image' ? m.path : `${m.videoId}-${i}`}
+          className="animate-enter flex gap-3 rounded-2xl border border-white/[0.07] bg-felt-950/45 p-2.5"
+        >
+          <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-felt-950 ring-1 ring-white/10">
             <img
               src={m.type === 'image' ? mediaUrl(m.path) : youTubeThumbnail(m.videoId)}
               alt=""
               className="size-full object-cover"
             />
             {m.type === 'youtube' && (
-              <span className="absolute inset-0 grid place-items-center text-cream-50">
-                <span className="rounded-full bg-chip-red p-1.5"><Icon name="play" className="size-4" /></span>
+              <span className="absolute inset-0 grid place-items-center bg-black/25 text-cream-50">
+                <Icon name="youtube" weight="fill" className="size-7 text-[#ff3b30] drop-shadow" />
               </span>
             )}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <input
-              className="field py-1.5 text-sm"
+              className="field py-2 text-sm"
               placeholder={m.type === 'image' ? 'Bildunterschrift (optional)' : 'Beschreibung (optional)'}
               value={m.caption ?? ''}
               onChange={(e) => update(i, { caption: e.target.value })}
@@ -85,14 +88,23 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
               </div>
             )}
           </div>
-          <button type="button" onClick={() => remove(i)} aria-label="Entfernen" className="self-start rounded-full p-1.5 text-cream-300 hover:bg-felt-700 hover:text-cream-50">
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            aria-label="Entfernen"
+            className="grid size-9 shrink-0 place-items-center self-start rounded-full text-cream-400 transition-colors hover:bg-white/5 hover:text-cream-50"
+          >
             <Icon name="x" className="size-4" />
           </button>
         </div>
       ))}
 
-      {uploading > 0 && <p className="text-sm text-cream-300">Bild wird hochgeladen …</p>}
-      {error && <p className="text-sm text-chip-red">{error}</p>}
+      {uploading > 0 && (
+        <p className="flex items-center gap-2 text-sm text-cream-300">
+          <Icon name="chip" weight="duotone" className="size-4 animate-spin text-gold-300" /> Bild wird hochgeladen …
+        </p>
+      )}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {ytOpen ? (
         <YouTubeForm
@@ -104,11 +116,11 @@ export function MediaEditor({ value, onChange, onImageRemoved }: Props) {
         />
       ) : (
         <div className="flex gap-2">
-          <button type="button" className="btn btn-ghost px-3 py-1.5 text-sm font-medium" onClick={() => fileInput.current?.click()}>
-            <Icon name="image" className="size-4" /> Bild
+          <button type="button" className="btn btn-ghost px-3 py-2 text-sm font-medium text-cream-200" onClick={() => fileInput.current?.click()}>
+            <Icon name="image" weight="duotone" className="size-[1.1rem] text-gold-300" /> Bild
           </button>
-          <button type="button" className="btn btn-ghost px-3 py-1.5 text-sm font-medium" onClick={() => setYtOpen(true)}>
-            <Icon name="play" className="size-4" /> YouTube
+          <button type="button" className="btn btn-ghost px-3 py-2 text-sm font-medium text-cream-200" onClick={() => setYtOpen(true)}>
+            <Icon name="youtube" weight="duotone" className="size-[1.1rem] text-gold-300" /> YouTube
           </button>
           <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => addFiles(e.target.files)} />
         </div>
@@ -121,7 +133,7 @@ function TimeInput({ label, value, onChange }: { label: string; value?: number; 
   const [text, setText] = useState(formatTime(value))
   return (
     <label className="flex items-center gap-1.5">
-      <span className="text-cream-300">{label}</span>
+      <span className="text-cream-400">{label}</span>
       <input
         className="field w-20 px-2 py-1 text-sm"
         inputMode="numeric"
@@ -152,7 +164,7 @@ function YouTubeForm({ onAdd, onCancel }: { onAdd: (m: Media) => void; onCancel:
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-felt-700 bg-felt-900/60 p-3">
+    <div className="animate-enter flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-felt-950/45 p-3">
       <input
         className="field"
         placeholder="YouTube-Link einfügen"
@@ -161,7 +173,7 @@ function YouTubeForm({ onAdd, onCancel }: { onAdd: (m: Media) => void; onCancel:
         value={url}
         onChange={(e) => setUrl(e.target.value)}
       />
-      {url && !parsed && <p className="text-sm text-chip-red">Kein gültiger YouTube-Link.</p>}
+      {url && !parsed && <p className="text-sm text-danger">Kein gültiger YouTube-Link.</p>}
       <div className="flex gap-2">
         <label className="flex flex-1 flex-col gap-1">
           <span className="label">Start (m:ss)</span>

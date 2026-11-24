@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
-import { Shell } from '../components/Shell'
+import { Icon } from '../components/Icon'
+import { ActionBar, SectionTitle, Shell } from '../components/Shell'
 import { defaultLevels } from '../game/blinds'
 import { availableQuestions } from '../game/display'
 import { newRoomCode, normalizeRoomCode } from '../game/room'
@@ -70,15 +71,21 @@ export function GameSetup() {
   return (
     <Shell title="Spielabend" back="/">
       {openGame && (
-        <div className="card mb-6 flex flex-col gap-3 border-gold-500/50 p-4">
-          <div>
-            <div className="text-sm text-gold-300">Läuft gerade</div>
-            <div className="font-display text-xl text-cream-50">{openGame.name}</div>
-            <div className="text-sm text-cream-300">{openGame.state.completed ?? 0} Fragen gespielt</div>
+        <div className="animate-focus-in mb-8 rounded-2xl border border-gold-400/40 bg-[linear-gradient(135deg,rgb(209_164_70/0.16),rgb(209_164_70/0.03))] p-4 shadow-[var(--shadow-lift)]">
+          <div className="flex items-center gap-3">
+            <span className="relative flex size-2.5">
+              <span className="animate-pulse-dot absolute inset-0 rounded-full bg-ok" />
+              <span className="relative size-2.5 rounded-full bg-ok" />
+            </span>
+            <span className="text-sm font-medium text-gold-200">Läuft gerade</span>
           </div>
-          <div className="flex gap-2">
+          <p className="mt-1.5 font-display text-2xl font-semibold text-cream-50">{openGame.name}</p>
+          <p className="text-sm text-cream-400">
+            {openGame.state.completed ?? 0} {(openGame.state.completed ?? 0) === 1 ? 'Frage' : 'Fragen'} gespielt
+          </p>
+          <div className="mt-4 flex gap-2">
             <button type="button" className="btn btn-primary flex-1" onClick={() => resume(openGame)}>
-              Fortsetzen
+              Fortsetzen <Icon name="arrow" weight="bold" className="size-4" />
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => finish(openGame)}>
               Beenden
@@ -87,28 +94,37 @@ export function GameSetup() {
         </div>
       )}
 
-      <div className="flex flex-col gap-7 pb-28">
+      <div className="flex flex-col gap-10 pb-32">
         <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg text-cream-50">TV verbinden</h2>
-          <p className="text-sm text-cream-300">
-            Auf dem Laptop am TV <span className="text-cream-100">{tvUrl().replace(/^https?:\/\//, '')}</span> öffnen und den
-            QR-Code mit diesem Handy scannen – oder den Code hier eintippen. Geht auch später.
+          <SectionTitle>TV verbinden</SectionTitle>
+          <p className="text-sm leading-relaxed text-cream-300">
+            Auf dem Laptop am Fernseher <span className="font-medium text-cream-100">{tvUrl().replace(/^https?:\/\//, '')}</span> öffnen
+            und den QR-Code mit diesem Handy scannen – oder den Code hier eintippen. Geht auch später.
           </p>
-          <input
-            className="field text-center font-mono text-xl tracking-[0.3em] uppercase"
-            placeholder="TV-CODE"
-            value={roomCode}
-            onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
-          />
+          <div className="relative">
+            <Icon name="tv" weight="duotone" className="pointer-events-none absolute top-1/2 left-4 size-6 -translate-y-1/2 text-gold-300" />
+            <input
+              className="field py-3.5 pl-14 font-display text-2xl font-semibold tracking-[0.35em] text-gold-200 uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
+              aria-label="TV-Code"
+              placeholder="TV-Code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              value={roomCode}
+              onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
+            />
+            {roomCode.length === 6 && (
+              <Icon name="check" weight="bold" className="animate-enter absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ok" />
+            )}
+          </div>
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg text-cream-50">Name</h2>
-          <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
+          <SectionTitle>Name des Abends</SectionTitle>
+          <input className="field" aria-label="Name des Abends" value={name} onChange={(e) => setName(e.target.value)} />
         </section>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg text-cream-50">Blinds</h2>
+        <section className="flex flex-col gap-4">
+          <SectionTitle>Blinds</SectionTitle>
           <BlindEditor
             levels={levels}
             perLevel={perLevel}
@@ -120,21 +136,28 @@ export function GameSetup() {
         </section>
 
         {stats && (
-          <p className={`text-sm ${stats.questions < 10 ? 'text-gold-300' : 'text-cream-300'}`}>
-            {stats.questions} spielbereite Fragen in {stats.categories} Kategorien.
-            {stats.questions < 10 && ' Für einen Abend werden etwa 10 gebraucht.'}
+          <p
+            className={`flex items-start gap-2.5 rounded-2xl px-4 py-3 text-sm ${
+              stats.questions < 10 ? 'bg-gold-400/10 text-gold-200' : 'bg-felt-950/40 text-cream-300'
+            }`}
+          >
+            <Icon name="cards" weight="duotone" className="mt-px size-5 shrink-0" />
+            <span>
+              {stats.questions} spielbereite {stats.questions === 1 ? 'Frage' : 'Fragen'} in {stats.categories}{' '}
+              {stats.categories === 1 ? 'Kategorie' : 'Kategorien'}.
+              {stats.questions < 10 && ' Für einen Abend werden etwa 10 gebraucht.'}
+            </span>
           </p>
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-felt-700 bg-felt-900/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex max-w-xl flex-col gap-2">
-          {error && <p className="text-sm text-chip-red">{error}</p>}
-          <button type="button" className="btn btn-primary w-full py-3" disabled={busy} onClick={start}>
-            {openGame ? 'Neuen Spielabend starten' : 'Spielabend starten'}
-          </button>
-        </div>
-      </div>
+      <ActionBar>
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <button type="button" className="btn btn-primary w-full py-3.5 text-base" disabled={busy} onClick={start}>
+          <Icon name="chip" weight="duotone" className="size-5" />
+          {openGame ? 'Neuen Spielabend starten' : 'Spielabend starten'}
+        </button>
+      </ActionBar>
     </Shell>
   )
 }

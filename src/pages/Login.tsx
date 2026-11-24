@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { ChipMark } from '../components/ChipMark'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 
@@ -25,38 +26,31 @@ export function Login() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4">
-      <img src="./favicon.svg" alt="" className="mx-auto mb-6 size-20" />
-      <h1 className="mb-8 text-center font-display text-3xl text-cream-50">Schätzpoker</h1>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5 py-10">
+      <div className="animate-focus-in mb-10 flex flex-col items-center gap-5 text-center">
+        <ChipMark className="size-20 drop-shadow-[0_10px_18px_rgba(0,0,0,0.55)]" />
+        <h1 className="wordmark text-5xl">
+          Schätz<em>poker</em>
+        </h1>
+      </div>
+      <form onSubmit={submit} className="animate-enter flex flex-col gap-4 [animation-delay:150ms]">
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm text-cream-300">E-Mail</span>
-          <input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-felt-600 bg-felt-800 px-3 py-2.5 text-cream-50 outline-none focus:border-gold-400"
-          />
+          <span className="label">E-Mail</span>
+          <input className="field" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm text-cream-300">Passwort</span>
+          <span className="label">Passwort</span>
           <input
+            className="field"
             type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-lg border border-felt-600 bg-felt-800 px-3 py-2.5 text-cream-50 outline-none focus:border-gold-400"
           />
         </label>
-        {error && <p className="text-sm text-chip-red">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-2 rounded-lg bg-gold-400 px-4 py-3 font-semibold text-felt-950 hover:bg-gold-300 disabled:opacity-60"
-        >
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <button type="submit" disabled={busy} className="btn btn-primary mt-3 py-3.5 text-base">
           {busy ? 'Anmelden …' : 'Anmelden'}
         </button>
       </form>

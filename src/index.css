@@ -1,22 +1,64 @@
 @import "tailwindcss";
+@import "@fontsource-variable/merriweather/opsz.css";
+@import "@fontsource-variable/merriweather/opsz-italic.css";
+@import "@fontsource-variable/schibsted-grotesk/wght.css";
 
-/* Farbwelt: Pokertisch – dunkler Filz, Gold, Creme */
+/*
+  Schätzpoker – Kartenraum im Hinterzimmer
+  Grüner Spieltischfilz mit Faserstruktur, warmes Lampenlicht von oben,
+  Messing/Gold, Spielkarten-Creme und Chip-Rot als Signalfarbe.
+*/
 @theme {
-  --color-felt-950: #08170f;
-  --color-felt-900: #0d241b;
-  --color-felt-800: #123528;
-  --color-felt-700: #1a4636;
-  --color-felt-600: #245a46;
-  --color-gold-300: #ecd08a;
-  --color-gold-400: #d4a84b;
-  --color-gold-500: #b88a2e;
-  --color-cream-50: #fbf6ea;
-  --color-cream-100: #f3e9d2;
-  --color-cream-300: #cfc3a6;
-  --color-chip-red: #c8423b;
+  /* Filz – von tief (Schatten) nach hell (Kanten, Linien) */
+  --color-felt-950: #06140e;
+  --color-felt-900: #0b2219;
+  --color-felt-850: #0f2b20;
+  --color-felt-800: #133426;
+  --color-felt-700: #1b4534;
+  --color-felt-600: #2a5a46;
+  --color-felt-500: #3d7560;
 
-  --font-display: "Georgia", "Iowan Old Style", "Times New Roman", serif;
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Messing / Gold */
+  --color-gold-200: #f3dfa6;
+  --color-gold-300: #e6c470;
+  --color-gold-400: #d1a446;
+  --color-gold-500: #b0832c;
+  --color-gold-600: #8a6420;
+
+  /* Spielkarten-Creme */
+  --color-cream-50: #fbf7ec;
+  --color-cream-100: #f1e8d3;
+  --color-cream-200: #e4d8bb;
+  --color-cream-300: #c9bea2;
+  --color-cream-400: #a1987f;
+
+  /* Chips */
+  --color-chip-red: #c23b33;
+  --color-chip-red-600: #9a2a23;
+  --color-danger: #ec7b70;
+  --color-ok: #6fcf97;
+
+  /* Tinte auf Karten */
+  --color-ink: #17261f;
+  --color-ink-soft: #4a5a51;
+
+  --font-display: "Merriweather Variable", Merriweather, Georgia, "Times New Roman", serif;
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 10px 24px -12px rgb(0 0 0 / 0.7), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 2px 3px rgb(0 0 0 / 0.35), 0 18px 40px -16px rgb(0 0 0 / 0.75);
+}
+
+/* Filz-Struktur: feines Korn + gerichtete Fasern (SVG-Rauschen) */
+:root {
+  --felt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --felt-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.45 1.1' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.5 -.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --felt-base: radial-gradient(130% 90% at 50% -15%, rgb(255 226 160 / 0.11), transparent 58%),
+    radial-gradient(150% 120% at 50% 35%, #154633 0%, #0b2219 52%, #05120c 100%);
+  color-scheme: dark;
 }
 
 @layer base {
@@ -26,80 +68,327 @@
     min-height: 100%;
   }
 
+  html {
+    background: var(--color-felt-950);
+  }
+
   body {
-    @apply bg-felt-900 text-cream-100 font-sans antialiased;
+    @apply font-sans text-cream-100 antialiased;
+    background: var(--felt-base);
+    background-attachment: fixed;
+    font-feature-settings: "ss01", "cv11";
     -webkit-tap-highlight-color: transparent;
+    caret-color: var(--color-gold-300);
+  }
+
+  /* Textur liegt als feste Ebenen über dem Filz, unter dem Inhalt:
+     helles Korn (::before) und dunkle, gerichtete Fasern (::after) */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    background-image: var(--felt-grain);
+    background-size: 160px 160px;
+    opacity: 0.07;
+  }
+  body::after {
+    background-image: var(--felt-fibre);
+    background-size: 180px 180px;
+    opacity: 0.3;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* Merriweather wählt die optische Größe automatisch passend zur Schriftgröße */
+  .font-display {
+    font-optical-sizing: auto;
+    font-variant-numeric: lining-nums;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgb(209 164 70 / 0.45);
+    color: var(--color-cream-50);
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-gold-400;
+    outline: 2px solid var(--color-gold-300);
+    outline-offset: 3px;
+    border-radius: 0.375rem;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-felt-600) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-felt-600);
+    border-radius: 999px;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--color-gold-400);
   }
 }
 
-@keyframes rise {
+/* ---------------------------------------------------------------------------
+   Bewegung
+   --------------------------------------------------------------------------- */
+
+@keyframes enter {
   from {
     opacity: 0;
-    transform: translateY(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    transform: translateY(6px);
+    filter: blur(4px);
   }
 }
 
-@keyframes pop {
-  0% {
+@keyframes focus-in {
+  from {
     opacity: 0;
-    transform: scale(0.85);
+    transform: scale(0.985);
+    filter: blur(14px);
+  }
+}
+
+/* Karte wird vom Geber über den Tisch zugeteilt */
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translate(var(--deal-x, 18vw), -70vh) rotate(var(--deal-r, -16deg)) scale(0.92);
+    filter: blur(3px);
   }
   60% {
     opacity: 1;
-    transform: scale(1.04);
+    filter: blur(0);
   }
-  100% {
+  to {
+    transform: rotate(var(--rest-r, 0deg));
+  }
+}
+
+/* Karte wird umgedreht (River) */
+@keyframes flip {
+  from {
+    transform: rotateY(180deg) scale(0.92);
+  }
+  55% {
+    transform: rotateY(70deg) scale(1.06);
+  }
+  to {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+/* Chip fällt auf den Stapel */
+@keyframes chip-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-60vh);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
     transform: none;
   }
 }
 
-@utility animate-rise {
-  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+@keyframes strike {
+  from {
+    transform: scaleX(0);
+  }
 }
 
-@utility animate-pop {
-  animation: pop 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@utility animate-enter {
+  animation: enter 0.38s var(--ease-out-expo) both;
+}
+
+@utility animate-focus-in {
+  animation: focus-in 0.7s var(--ease-out-expo) both;
+}
+
+@utility animate-deal {
+  animation: deal 0.85s var(--ease-out-expo) both;
+}
+
+@utility animate-flip {
+  animation: flip 1.2s var(--ease-out-quart) 0.45s both;
+}
+
+@utility animate-chip-drop {
+  animation: chip-drop 0.75s var(--ease-out-quart) both;
+}
+
+@utility animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-rise,
-  .animate-pop {
+  .animate-enter,
+  .animate-focus-in,
+  .animate-deal,
+  .animate-chip-drop {
+    animation: enter 0.2s ease-out both;
+  }
+  .animate-flip {
+    animation: none;
+  }
+  .animate-pulse-dot {
     animation: none;
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Bausteine
+   --------------------------------------------------------------------------- */
+
 @layer components {
   .field {
-    @apply w-full rounded-lg border border-felt-600 bg-felt-800 px-3 py-2.5 text-base text-cream-50 outline-none placeholder:text-cream-300/50 focus:border-gold-400;
+    @apply w-full rounded-xl border px-3.5 py-3 text-base text-cream-50 transition-[border-color,box-shadow,background-color] duration-200 outline-none placeholder:text-cream-400;
+    background: rgb(6 20 14 / 0.55);
+    border-color: rgb(241 232 211 / 0.1);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
+  }
+  .field:hover {
+    border-color: rgb(241 232 211 / 0.18);
+  }
+  .field:focus {
+    border-color: var(--color-gold-400);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 3px rgb(209 164 70 / 0.18);
+  }
+  .field:focus-visible {
+    outline: none;
   }
   textarea.field {
     field-sizing: content;
-    @apply min-h-[5.5rem] resize-none;
+    @apply min-h-[5.5rem] resize-none leading-relaxed;
   }
+  select.field {
+    @apply appearance-none pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='%23c9bea2' stroke-linecap='round' stroke-linejoin='round' stroke-width='20' d='m208 96-80 80-80-80'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 1rem;
+  }
+
   .label {
-    @apply text-sm text-cream-300;
+    @apply text-[0.8125rem] font-medium tracking-[0.01em] text-cream-300;
   }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition-colors disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold tracking-[0.005em] whitespace-nowrap transition-[transform,background-color,border-color,box-shadow,color] duration-150 select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-45;
   }
   .btn-primary {
-    @apply bg-gold-400 text-felt-950 hover:bg-gold-300;
+    @apply text-felt-950;
+    background: linear-gradient(180deg, var(--color-gold-300), var(--color-gold-400) 55%, var(--color-gold-500));
+    box-shadow: inset 0 1px 0 rgb(255 248 220 / 0.55), inset 0 -1px 0 rgb(90 60 10 / 0.35), 0 8px 20px -10px rgb(0 0 0 / 0.8),
+      0 1px 2px rgb(0 0 0 / 0.4);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, var(--color-gold-200), var(--color-gold-300) 55%, var(--color-gold-400));
   }
   .btn-ghost {
-    @apply border border-felt-600 text-cream-100 hover:border-gold-500;
+    @apply text-cream-100;
+    background: rgb(241 232 211 / 0.035);
+    border: 1px solid rgb(241 232 211 / 0.12);
+  }
+  .btn-ghost:hover {
+    border-color: rgb(209 164 70 / 0.55);
+    background: rgb(241 232 211 / 0.06);
   }
   .btn-danger {
-    @apply border border-chip-red/60 text-chip-red hover:bg-chip-red/10;
+    @apply text-danger;
+    border: 1px solid rgb(236 123 112 / 0.4);
   }
+  .btn-danger:hover {
+    background: rgb(236 123 112 / 0.08);
+  }
+  .btn-icon {
+    @apply grid size-11 shrink-0 place-items-center rounded-xl p-0 text-cream-200;
+  }
+
   .card {
-    @apply rounded-xl border border-felt-700 bg-felt-800;
+    @apply rounded-2xl;
+    background: linear-gradient(180deg, rgb(27 69 52 / 0.55), rgb(15 43 32 / 0.55));
+    border: 1px solid rgb(241 232 211 / 0.075);
+    box-shadow: var(--shadow-lift);
+  }
+  a.card,
+  button.card {
+    @apply transition-[transform,border-color,background-color] duration-200 active:scale-[0.99];
+  }
+  a.card:hover,
+  button.card:hover {
+    border-color: rgb(209 164 70 / 0.45);
+  }
+
+  /* Spielkarte (TV) */
+  .playing-card {
+    @apply relative text-ink;
+    border-radius: clamp(0.75rem, 1.1vw, 1.5rem);
+    background:
+      var(--felt-grain) 0 0 / 180px 180px,
+      linear-gradient(165deg, #fffdf6 0%, var(--color-cream-100) 70%, var(--color-cream-200) 100%);
+    background-blend-mode: soft-light, normal;
+    box-shadow: var(--shadow-card), inset 0 0 0 1px rgb(23 38 31 / 0.08);
+  }
+  .playing-card::after {
+    content: "";
+    position: absolute;
+    inset: clamp(0.35rem, 0.5vw, 0.7rem);
+    border-radius: inherit;
+    border: 1px solid rgb(176 131 44 / 0.35);
+    pointer-events: none;
+  }
+
+  /* Kartenrücken: Rauten-Gitter in Rot und Gold */
+  .card-back {
+    border-radius: clamp(0.75rem, 1.1vw, 1.5rem);
+    background:
+      repeating-linear-gradient(45deg, rgb(230 196 112 / 0.22) 0 1px, transparent 1px 14px),
+      repeating-linear-gradient(-45deg, rgb(230 196 112 / 0.22) 0 1px, transparent 1px 14px),
+      radial-gradient(circle at 50% 50%, var(--color-chip-red), var(--color-chip-red-600));
+    box-shadow: var(--shadow-card), inset 0 0 0 clamp(0.35rem, 0.5vw, 0.7rem) var(--color-cream-100),
+      inset 0 0 0 calc(clamp(0.35rem, 0.5vw, 0.7rem) + 1px) rgb(176 131 44 / 0.6);
+  }
+
+  .wordmark {
+    @apply font-display font-semibold tracking-[-0.01em] text-cream-50;
+  }
+  .wordmark em {
+    @apply font-normal text-gold-300 italic;
   }
 }

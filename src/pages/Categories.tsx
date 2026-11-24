@@ -60,31 +60,37 @@ export function Categories() {
 
   return (
     <Shell title="Kategorien" back="/bibliothek">
-      <form onSubmit={add} className="mb-5 flex gap-2">
-        <input className="field" placeholder="Neue Kategorie" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button type="submit" className="btn btn-primary shrink-0 px-3" aria-label="Anlegen" disabled={!newName.trim()}>
-          <Icon name="plus" />
+      <form onSubmit={add} className="mb-6 flex gap-2">
+        <input className="field" aria-label="Neue Kategorie" placeholder="Neue Kategorie" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <button type="submit" className="btn btn-primary btn-icon text-felt-950" aria-label="Kategorie anlegen" disabled={!newName.trim()}>
+          <Icon name="plus" weight="bold" />
         </button>
       </form>
 
-      {error && <p className="mb-3 text-sm text-chip-red">{error}</p>}
-      {!categories && !error && <p className="text-cream-300">Lädt …</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+      {!categories && !error && <p className="text-cream-400">Lädt …</p>}
       {categories?.length === 0 && (
-        <p className="text-cream-300">Noch keine Kategorien. Die KI legt sie beim Speichern von Fragen automatisch an.</p>
+        <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+          <Icon name="tag" weight="duotone" className="size-12 text-gold-300/80" />
+          <p className="max-w-[30ch] text-cream-300">Noch keine Kategorien. Die KI legt sie beim Speichern von Fragen automatisch an.</p>
+        </div>
       )}
 
-      <ul className="flex flex-col gap-2">
-        {categories?.map((c) => (
-          <li key={c.id} className="card overflow-hidden">
+      <ul className="flex flex-col gap-2.5">
+        {categories?.map((c, i) => (
+          <li key={c.id} className="card animate-enter overflow-hidden" style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}>
             <button
               type="button"
-              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left"
               onClick={() => setOpenId(openId === c.id ? null : c.id)}
               aria-expanded={openId === c.id}
             >
-              <span className="size-3 shrink-0 rounded-full" style={{ background: c.color }} />
-              <span className="flex-1 text-cream-50">{c.name}</span>
-              <span className="text-sm text-cream-300 tabular-nums">{counts.get(c.id) ?? 0}</span>
+              <span className="size-3.5 shrink-0 rounded-full ring-4 ring-black/20" style={{ background: c.color }} />
+              <span className="flex-1 font-display text-lg font-semibold text-cream-50">{c.name}</span>
+              <span className="text-sm text-cream-400 tabular-nums">
+                {counts.get(c.id) ?? 0} {(counts.get(c.id) ?? 0) === 1 ? 'Frage' : 'Fragen'}
+              </span>
+              <Icon name="down" className={`size-4 text-cream-400 transition-transform duration-300 ${openId === c.id ? 'rotate-180' : ''}`} />
             </button>
             {openId === c.id && (
               <CategoryEditor
@@ -118,7 +124,7 @@ function CategoryEditor({ category, others, count, onRename, onColor, onMerge, o
   const [name, setName] = useState(category.name)
 
   return (
-    <div className="flex flex-col gap-4 border-t border-felt-700 px-4 py-4">
+    <div className="animate-enter flex flex-col gap-5 border-t border-white/[0.06] px-4 pt-4 pb-5">
       <label className="flex flex-col gap-1.5">
         <span className="label">Name</span>
         <input
@@ -138,7 +144,8 @@ function CategoryEditor({ category, others, count, onRename, onColor, onMerge, o
               type="button"
               aria-label={`Farbe ${color}`}
               onClick={() => onColor(color)}
-              className={`size-8 rounded-full ring-offset-2 ring-offset-felt-800 ${category.color === color ? 'ring-2 ring-cream-50' : ''}`}
+              aria-pressed={category.color === color}
+              className={`size-9 rounded-full ring-offset-2 ring-offset-felt-850 transition-transform hover:scale-110 ${category.color === color ? 'ring-2 ring-cream-50' : ''}`}
               style={{ background: color }}
             />
           ))}
@@ -156,7 +163,7 @@ function CategoryEditor({ category, others, count, onRename, onColor, onMerge, o
               if (target && window.confirm(`„${category.name}“ in „${target.name}“ aufgehen lassen?`)) onMerge(target.id)
             }}
           >
-            <option value="">– Kategorie wählen –</option>
+            <option value="">Kategorie wählen</option>
             {others.map((o) => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
@@ -166,7 +173,7 @@ function CategoryEditor({ category, others, count, onRename, onColor, onMerge, o
 
       <button
         type="button"
-        className="btn btn-danger self-start py-1.5 text-sm"
+        className="btn btn-danger self-start py-2 text-sm"
         onClick={() => {
           const msg = count
             ? `„${category.name}“ löschen? ${count} ${count === 1 ? 'Frage ist' : 'Fragen sind'} danach ohne Kategorie.`

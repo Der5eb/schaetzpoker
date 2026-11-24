@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
 import { CategoryBadge } from '../components/CategoryBadge'
-import { Icon } from '../components/Icon'
+import { ChipMark } from '../components/ChipMark'
+import { Icon, type IconName } from '../components/Icon'
+import { ActionBar } from '../components/Shell'
 import { blindInfo, formatBlinds } from '../game/blinds'
 import { availableQuestions, buildDisplay, mediaKey } from '../game/display'
 import { normalizeRoomCode, useGmRoom } from '../game/room'
@@ -60,7 +62,7 @@ export function GameMaster() {
 
   const setState = (patch: Partial<GameState>) => game && save({ state: { ...game.state, ...patch } })
 
-  if (error && !game) return <Frame><p className="text-chip-red">{error}</p></Frame>
+  if (error && !game) return <Frame><p className="text-danger">{error}</p></Frame>
   if (!game || !display) return <Frame><p className="text-cream-300">Lädt …</p></Frame>
 
   const s = game.state
@@ -92,34 +94,45 @@ export function GameMaster() {
     navigate('/')
   }
 
+  const roundSteps: { label: string; icon: IconName }[] = [
+    { label: 'Frage', icon: 'cards' },
+    { label: 'Hinweis 1', icon: 'club' },
+    { label: 'Hinweis 2', icon: 'diamond' },
+    { label: 'Lösung', icon: 'spade' },
+  ]
+
   return (
     <Frame>
-      <header className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate font-display text-xl text-cream-50">{game.name}</h1>
-          <p className="text-sm text-cream-300">
-            Frage {s.completed + (s.phase === 'round' ? 1 : 0) || '–'} · Blinds{' '}
-            <span className="text-cream-50 tabular-nums">{formatBlinds(info.current)}</span>
-            {s.phase !== 'blinds' && <> · noch {info.untilIncrease}</>}
-          </p>
+      <header className="mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="min-w-0 truncate font-display text-[1.6rem] leading-tight font-semibold text-cream-50">{game.name}</h1>
+          <span
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+              tvOnline ? 'bg-ok/12 text-ok' : 'bg-danger/12 text-danger'
+            }`}
+          >
+            <span className="relative flex size-2">
+              {tvOnline && <span className="animate-pulse-dot absolute inset-0 rounded-full bg-ok" />}
+              <span className={`relative size-2 rounded-full ${tvOnline ? 'bg-ok' : 'bg-danger'}`} />
+            </span>
+            {tvOnline ? 'TV verbunden' : 'TV offline'}
+          </span>
         </div>
-        <span
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${
-            tvOnline ? 'bg-emerald-500/15 text-emerald-300' : 'bg-chip-red/15 text-chip-red'
-          }`}
-        >
-          <span className={`size-2 rounded-full ${tvOnline ? 'bg-emerald-400' : 'bg-chip-red'}`} />
-          {tvOnline ? 'TV verbunden' : 'TV offline'}
-        </span>
+        <dl className="mt-3 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl bg-felt-950/45 py-2.5 ring-1 ring-white/[0.05]">
+          <Stat label="Frage" value={String(s.completed + (s.phase === 'round' ? 1 : 0) || '–')} />
+          <Stat label="Blinds" value={formatBlinds(info.current)} chip />
+          <Stat label="Erhöhung" value={s.phase === 'blinds' ? 'jetzt' : `in ${info.untilIncrease}`} />
+        </dl>
       </header>
 
-      {error && <p className="mb-4 text-sm text-chip-red">{error}</p>}
+      {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
       {s.phase === 'lobby' && (
-        <div className="flex flex-col gap-4">
-          <p className="text-cream-300">Der TV zeigt den Startbildschirm. Wenn alle sitzen:</p>
-          <button type="button" className="btn btn-primary py-3" onClick={() => setState({ phase: 'category' })}>
-            Spiel starten
+        <div className="animate-enter flex flex-col items-center gap-5 py-10 text-center">
+          <ChipMark className="size-20 drop-shadow-[0_12px_20px_rgba(0,0,0,0.6)]" />
+          <p className="max-w-[30ch] text-cream-300">Der TV zeigt den Startbildschirm. Wenn alle am Tisch sitzen und die Chips verteilt sind:</p>
+          <button type="button" className="btn btn-primary w-full py-4 text-lg" onClick={() => setState({ phase: 'category' })}>
+            <Icon name="cards" weight="duotone" className="size-6" /> Spiel starten
           </button>
         </div>
       )}
@@ -130,27 +143,35 @@ export function GameMaster() {
           available={available}
           picked={pickedCategory}
           onPick={setPickedCategory}
-          onStart={(q) =>
-            setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })
-          }
+          onStart={(q) => setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })}
         />
       )}
 
       {s.phase === 'round' && question && (
-        <div className="flex flex-col gap-4 pb-40">
-          <div className="flex items-center justify-between">
+        <div className="animate-enter flex flex-col gap-4 pb-48">
+          <ol className="grid grid-cols-4 gap-2" aria-label="Fortschritt der Runde">
+            {roundSteps.map((step, i) => (
+              <li key={step.label} className="flex flex-col items-center gap-1.5">
+                <MiniCard shown={s.reveal >= i} current={s.reveal === i} icon={step.icon} />
+                <span className={`text-[0.7rem] font-medium ${s.reveal >= i ? 'text-cream-200' : 'text-cream-400'}`}>{step.label}</span>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-2 flex items-center justify-between gap-3">
             <CategoryBadge category={categories.find((c) => c.id === question.category_id)} />
-            <span className="text-sm text-cream-300">
-              {s.decided ? 'entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
+            <span className="rounded-full bg-chip-red/90 px-2.5 py-1 text-xs font-semibold text-cream-50">
+              {s.decided ? 'Runde entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
             </span>
           </div>
-          <h2 className="font-display text-2xl text-cream-50">{question.title}</h2>
+          <h2 className="font-display text-[1.75rem] leading-tight font-semibold text-cream-50">{question.title}</h2>
 
-          <Block label="Frage" shown text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
-          <Block label="Hinweis 1" shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
-          <Block label="Hinweis 2" shown={s.reveal >= 2} text={question.hint2} media={question.hint2_media} keyFor={(i) => mediaKey.hint(2, i)} onVideo={sendVideo} />
+          <Block label="Frage" icon="cards" shown text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
+          <Block label="Hinweis 1" icon="club" shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
+          <Block label="Hinweis 2" icon="diamond" shown={s.reveal >= 2} text={question.hint2} media={question.hint2_media} keyFor={(i) => mediaKey.hint(2, i)} onVideo={sendVideo} />
           <Block
             label="Lösung"
+            icon="spade"
             shown={s.reveal >= 3}
             highlight={formatAnswer(question)}
             text={question.explanation}
@@ -159,44 +180,43 @@ export function GameMaster() {
             onVideo={sendVideo}
           />
           {(question.notes || question.source) && (
-            <div className="rounded-xl border border-dashed border-felt-600 p-4 text-sm">
-              <div className="mb-1 text-xs tracking-widest text-cream-300 uppercase">Nur für dich</div>
-              {question.notes && <p className="whitespace-pre-wrap text-cream-100">{question.notes}</p>}
-              {question.source && <p className="mt-2 break-words text-cream-300">Quelle: {question.source}</p>}
+            <div className="rounded-2xl border border-dashed border-gold-400/30 bg-gold-400/[0.04] p-4 text-sm">
+              <p className="mb-1.5 flex items-center gap-1.5 font-semibold text-gold-200">
+                <Icon name="eyeOff" className="size-4" /> Nur für dich
+              </p>
+              {question.notes && <p className="leading-relaxed whitespace-pre-wrap text-cream-100">{question.notes}</p>}
+              {question.source && <p className="mt-2 break-words text-cream-400">Quelle: {question.source}</p>}
             </div>
           )}
 
           <ActionBar>
             <button
               type="button"
-              className="btn btn-primary w-full py-3.5 text-lg"
+              className="btn btn-primary w-full py-4 text-lg"
               disabled={busy}
               onClick={() => (s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound())}
             >
+              <Icon name={s.reveal < 3 ? 'eye' : 'flag'} weight="duotone" className="size-6" />
               {s.reveal < 3 ? REVEAL_LABELS[s.reveal] : 'Runde beenden'}
             </button>
             <div className="flex gap-2">
               {s.reveal > 0 && (
-                <button type="button" className="btn btn-ghost flex-1 py-2 text-sm" onClick={() => setState({ reveal: s.reveal - 1, decided: false })}>
-                  Zurück
+                <button type="button" className="btn btn-ghost flex-1 py-2.5 text-sm" onClick={() => setState({ reveal: s.reveal - 1, decided: false })}>
+                  <Icon name="restart" className="size-4" /> Zurück
                 </button>
               )}
               {s.reveal === 0 && (
                 <button
                   type="button"
-                  className="btn btn-ghost flex-1 py-2 text-sm"
+                  className="btn btn-ghost flex-1 py-2.5 text-sm"
                   onClick={() => setState({ phase: 'category', questionId: null, categoryId: null })}
                 >
-                  Andere Frage
+                  <Icon name="shuffle" className="size-4" /> Andere Frage
                 </button>
               )}
               {s.reveal < 3 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost flex-1 py-2 text-sm"
-                  onClick={() => setState({ reveal: 3, decided: true })}
-                >
-                  Nur 1 Spieler übrig
+                <button type="button" className="btn btn-ghost flex-1 py-2.5 text-sm" onClick={() => setState({ reveal: 3, decided: true })}>
+                  <Icon name="crown" className="size-4" /> Nur 1 Spieler übrig
                 </button>
               )}
             </div>
@@ -206,19 +226,22 @@ export function GameMaster() {
 
       {s.phase === 'round' && !question && (
         <div className="flex flex-col gap-3">
-          <p className="text-chip-red">Die aktuelle Frage wurde nicht gefunden.</p>
+          <p className="text-danger">Die aktuelle Frage wurde nicht gefunden.</p>
           <button type="button" className="btn btn-ghost" onClick={() => setState({ phase: 'category', questionId: null })}>
-            Zur Kategorie-Auswahl
+            Zur Kategorie-Wahl
           </button>
         </div>
       )}
 
       {s.phase === 'blinds' && (
-        <div className="flex flex-col gap-4">
-          <p className="text-cream-300">Der TV kündigt die neuen Blinds an:</p>
-          <p className="font-display text-4xl text-gold-300 tabular-nums">{formatBlinds(info.current)}</p>
-          <button type="button" className="btn btn-primary py-3" onClick={() => setState({ phase: 'category' })}>
-            Weiter zur Kategorie-Wahl
+        <div className="animate-enter flex flex-col items-center gap-4 py-8 text-center">
+          <p className="text-cream-300">Der TV kündigt die neuen Blinds an</p>
+          <p className="flex items-center gap-3 font-display text-5xl font-semibold text-gold-200 tabular-nums">
+            <ChipMark className="size-11" />
+            {formatBlinds(info.current)}
+          </p>
+          <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" onClick={() => setState({ phase: 'category' })}>
+            Weiter zur Kategorie-Wahl <Icon name="arrow" weight="bold" className="size-5" />
           </button>
         </div>
       )}
@@ -226,8 +249,8 @@ export function GameMaster() {
       {s.phase === 'ended' && <p className="text-cream-300">Dieser Spielabend ist beendet.</p>}
 
       {s.phase !== 'round' && s.phase !== 'ended' && (
-        <div className="mt-10 flex flex-col gap-3 border-t border-felt-700 pt-6">
-          <Collapsible title="Blinds anpassen">
+        <div className="mt-12 flex flex-col gap-2.5">
+          <Collapsible title="Blinds anpassen" icon="stack">
             <BlindEditor
               levels={game.blind_levels}
               perLevel={game.questions_per_level}
@@ -235,11 +258,11 @@ export function GameMaster() {
               onChange={(levels, perLevel) => save({ blind_levels: levels, questions_per_level: perLevel })}
             />
           </Collapsible>
-          <Collapsible title="TV neu verbinden">
+          <Collapsible title="TV neu verbinden" icon="tv">
             <RoomCodeForm current={game.room_code} onSave={(code) => save({ room_code: code })} />
           </Collapsible>
-          <button type="button" className="btn btn-danger mt-2 self-start py-2 text-sm" onClick={finishGame}>
-            Spielabend beenden
+          <button type="button" className="btn btn-danger mt-4 self-start py-2.5 text-sm" onClick={finishGame}>
+            <Icon name="flag" className="size-4" /> Spielabend beenden
           </button>
         </div>
       )}
@@ -251,30 +274,54 @@ export function GameMaster() {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       {children}
     </div>
   )
 }
 
-function ActionBar({ children }: { children: ReactNode }) {
+function Stat({ label, value, chip }: { label: string; value: string; chip?: boolean }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 border-t border-felt-700 bg-felt-900/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-      <div className="mx-auto flex max-w-xl flex-col gap-2">{children}</div>
+    <div className="flex flex-col items-center gap-0.5 px-2">
+      <dt className="text-[0.7rem] font-medium text-cream-400">{label}</dt>
+      <dd className="flex items-center gap-1.5 font-display text-lg leading-tight font-semibold text-cream-50 tabular-nums">
+        {chip && <ChipMark className="size-4" />}
+        {value}
+      </dd>
     </div>
   )
 }
 
-function Collapsible({ title, children }: { title: string; children: ReactNode }) {
+/** Kleine Spielkarte für den Rundenfortschritt – dreht sich beim Aufdecken um. */
+function MiniCard({ shown, current, icon }: { shown: boolean; current: boolean; icon: IconName }) {
   return (
-    <details className="card group px-4 py-3">
-      <summary className="cursor-pointer list-none text-cream-100 marker:hidden">
-        <span className="flex items-center justify-between">
-          {title}
-          <span className="text-cream-300 transition-transform group-open:rotate-90">›</span>
+    <span className="relative block aspect-[5/7] w-full [perspective:600px]">
+      <span
+        className="absolute inset-0 transition-transform duration-700 ease-[var(--ease-out-expo)] [transform-style:preserve-3d]"
+        style={{ transform: shown ? 'rotateY(0deg)' : 'rotateY(180deg)' }}
+      >
+        <span
+          className={`playing-card absolute inset-0 grid place-items-center [backface-visibility:hidden] ${
+            current ? 'ring-2 ring-gold-300 ring-offset-2 ring-offset-felt-900' : ''
+          }`}
+        >
+          <Icon name={icon} weight="fill" className={`size-6 ${icon === 'diamond' ? 'text-chip-red' : 'text-ink'}`} />
         </span>
+        <span className="card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]" />
+      </span>
+    </span>
+  )
+}
+
+function Collapsible({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
+  return (
+    <details className="card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 text-cream-100 [&::-webkit-details-marker]:hidden">
+        <Icon name={icon} weight="duotone" className="size-5 text-gold-300" />
+        <span className="flex-1 font-medium">{title}</span>
+        <Icon name="down" className="size-4 text-cream-400 transition-transform duration-300 group-open:rotate-180" />
       </summary>
-      <div className="pt-4">{children}</div>
+      <div className="border-t border-white/[0.06] px-4 pt-4 pb-5">{children}</div>
     </details>
   )
 }
@@ -282,12 +329,15 @@ function Collapsible({ title, children }: { title: string; children: ReactNode }
 function RoomCodeForm({ current, onSave }: { current: string; onSave: (code: string) => void }) {
   const [code, setCode] = useState('')
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm text-cream-300">Aktueller Code: <span className="font-mono text-cream-100">{current}</span>. Neuen Code vom TV eintippen:</p>
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-cream-300">
+        Aktueller Code: <span className="font-display font-semibold tracking-[0.2em] text-cream-50">{current}</span>. Neuen Code vom TV eintippen:
+      </p>
       <div className="flex gap-2">
         <input
-          className="field text-center font-mono tracking-[0.3em] uppercase"
-          placeholder="TV-CODE"
+          className="field text-center font-display text-xl font-semibold tracking-[0.3em] uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
+          aria-label="Neuer TV-Code"
+          placeholder="TV-Code"
           value={code}
           onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
         />
@@ -320,26 +370,28 @@ function CategoryStep({
     const entry = withQuestions.find((x) => x.c.id === picked)
     const qs = entry?.qs ?? []
     return (
-      <div className="flex flex-col gap-3">
-        <button type="button" className="self-start text-sm text-cream-300 hover:text-cream-50" onClick={() => onPick(null)}>
-          ‹ Andere Kategorie
+      <div className="animate-enter flex flex-col gap-3">
+        <button
+          type="button"
+          className="-ml-1 flex items-center gap-1 self-start rounded-lg px-1 py-1 text-sm text-cream-300 hover:text-cream-50"
+          onClick={() => onPick(null)}
+        >
+          <Icon name="back" className="size-4" /> Andere Kategorie
         </button>
-        <h2 className="flex items-center gap-2 font-display text-2xl text-cream-50">
-          <span className="size-3 rounded-full" style={{ background: entry?.c.color }} />
+        <h2 className="flex items-center gap-2.5 font-display text-[1.75rem] font-semibold text-cream-50">
+          <span className="size-3.5 rounded-full ring-4 ring-black/20" style={{ background: entry?.c.color }} />
           {entry?.c.name}
         </h2>
-        <p className="text-sm text-cream-300">Welche Frage wird gespielt? (nur du siehst das)</p>
-        <ul className="flex flex-col gap-2">
-          {qs.map((q) => (
-            <li key={q.id}>
-              <button
-                type="button"
-                className="card flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:border-gold-500"
-                onClick={() => onStart(q)}
-              >
+        <p className="flex items-center gap-1.5 text-sm text-cream-400">
+          <Icon name="eyeOff" className="size-4" /> Welche Frage wird gespielt? Nur du siehst diese Liste.
+        </p>
+        <ul className="flex flex-col gap-2.5">
+          {qs.map((q, i) => (
+            <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}>
+              <button type="button" className="card flex w-full flex-col gap-1.5 px-4 py-3.5 text-left" onClick={() => onStart(q)}>
                 <span className="flex items-start justify-between gap-3">
-                  <span className="font-display text-lg text-cream-50">{q.title}</span>
-                  <span className="shrink-0 text-sm text-gold-300 tabular-nums">{formatAnswer(q)}</span>
+                  <span className="font-display text-xl leading-snug font-semibold text-cream-50">{q.title}</span>
+                  <span className="shrink-0 pt-0.5 font-display font-semibold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
                 </span>
                 <span className="line-clamp-2 text-sm text-cream-300">{q.question}</span>
               </button>
@@ -347,8 +399,8 @@ function CategoryStep({
           ))}
         </ul>
         {qs.length > 1 && (
-          <button type="button" className="btn btn-ghost" onClick={() => onStart(qs[Math.floor(Math.random() * qs.length)])}>
-            Zufällige Frage
+          <button type="button" className="btn btn-ghost mt-1" onClick={() => onStart(qs[Math.floor(Math.random() * qs.length)])}>
+            <Icon name="shuffle" className="size-4 text-gold-300" /> Zufällige Frage
           </button>
         )}
       </div>
@@ -356,20 +408,20 @@ function CategoryStep({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-cream-300">Der Big Blind wählt eine Kategorie:</p>
-      {withQuestions.length === 0 && <p className="text-gold-300">Keine spielbereiten Fragen mehr übrig.</p>}
-      <ul className="grid grid-cols-2 gap-2">
-        {withQuestions.map(({ c, qs }) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              onClick={() => onPick(c.id)}
-              className="card flex h-full w-full flex-col items-start gap-1 px-4 py-3 text-left transition-colors hover:border-gold-500"
-              style={{ borderTopColor: c.color, borderTopWidth: 3 }}
-            >
-              <span className="font-display text-lg leading-tight text-cream-50">{c.name}</span>
-              <span className="text-sm text-cream-300">{qs.length} {qs.length === 1 ? 'Frage' : 'Fragen'}</span>
+    <div className="animate-enter flex flex-col gap-4">
+      <p className="flex items-center gap-2 text-cream-200">
+        <Icon name="crown" weight="duotone" className="size-5 text-gold-300" /> Der Big Blind wählt eine Kategorie
+      </p>
+      {withQuestions.length === 0 && <p className="text-gold-200">Keine spielbereiten Fragen mehr übrig.</p>}
+      <ul className="grid grid-cols-2 gap-2.5">
+        {withQuestions.map(({ c, qs }, i) => (
+          <li key={c.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
+            <button type="button" onClick={() => onPick(c.id)} className="card relative flex h-full w-full flex-col items-start gap-1 overflow-hidden px-4 pt-5 pb-3.5 text-left">
+              <span className="absolute inset-x-0 top-0 h-1" style={{ background: c.color }} />
+              <span className="font-display text-xl leading-tight font-semibold text-cream-50">{c.name}</span>
+              <span className="text-sm text-cream-400">
+                {qs.length} {qs.length === 1 ? 'Frage' : 'Fragen'}
+              </span>
             </button>
           </li>
         ))}
@@ -380,6 +432,7 @@ function CategoryStep({
 
 function Block({
   label,
+  icon,
   shown,
   text,
   highlight,
@@ -388,6 +441,7 @@ function Block({
   onVideo,
 }: {
   label: string
+  icon: IconName
   shown: boolean
   text: string
   highlight?: string
@@ -396,33 +450,44 @@ function Block({
   onVideo: (c: VideoCommand) => void
 }) {
   return (
-    <section className={`rounded-xl border p-4 ${shown ? 'border-gold-500/50 bg-felt-800' : 'border-felt-700 bg-felt-900/60'}`}>
-      <div className="mb-1.5 flex items-center justify-between text-xs tracking-widest uppercase">
-        <span className="text-cream-300">{label}</span>
-        <span className={shown ? 'text-gold-300' : 'text-cream-300/60'}>{shown ? 'auf dem TV' : 'verdeckt'}</span>
+    <section
+      className={`rounded-2xl border p-4 transition-colors duration-500 ${
+        shown ? 'border-gold-400/45 bg-felt-800/80 shadow-[var(--shadow-lift)]' : 'border-white/[0.06] bg-felt-950/35'
+      }`}
+    >
+      <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+        <span className="flex items-center gap-1.5 text-cream-300">
+          <Icon name={icon} weight="fill" className="size-3.5 text-gold-300" /> {label}
+        </span>
+        <span className={`flex items-center gap-1 ${shown ? 'text-gold-200' : 'text-cream-400'}`}>
+          <Icon name={shown ? 'eye' : 'eyeOff'} className="size-3.5" />
+          {shown ? 'am TV' : 'verdeckt'}
+        </span>
       </div>
-      {highlight && <p className="font-display text-3xl text-gold-300 tabular-nums">{highlight}</p>}
-      {text && <p className="whitespace-pre-wrap text-cream-50">{text}</p>}
+      {highlight && <p className="font-display text-4xl font-semibold text-gold-200 tabular-nums">{highlight}</p>}
+      {text && <p className={`leading-relaxed whitespace-pre-wrap ${shown ? 'text-cream-50' : 'text-cream-200'}`}>{text}</p>}
       {media.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
           {media.map((m, i) => (
-            <li key={i} className="flex items-center gap-3">
+            <li key={i} className="flex items-center gap-3 rounded-xl bg-felt-950/40 p-2">
               <img
                 src={m.type === 'image' ? mediaUrl(m.path) : youTubeThumbnail(m.videoId)}
                 alt=""
-                className="size-14 shrink-0 rounded-md object-cover"
+                className="size-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10"
               />
               <span className="min-w-0 flex-1 truncate text-sm text-cream-300">
                 {m.caption || (m.type === 'image' ? 'Bild' : 'YouTube')}
                 {m.type === 'youtube' && (m.start != null || m.end != null) && (
-                  <span className="block text-xs">{formatTime(m.start ?? 0)}–{m.end != null ? formatTime(m.end) : 'Ende'}</span>
+                  <span className="block text-xs text-cream-400 tabular-nums">
+                    {formatTime(m.start ?? 0)}–{m.end != null ? formatTime(m.end) : 'Ende'}
+                  </span>
                 )}
               </span>
               {m.type === 'youtube' && shown && (
                 <span className="flex shrink-0 gap-1">
                   <VideoButton label="Abspielen" icon="play" onClick={() => onVideo({ key: keyFor(i), cmd: 'play' })} />
-                  <VideoButton label="Pause" text="❚❚" onClick={() => onVideo({ key: keyFor(i), cmd: 'pause' })} />
-                  <VideoButton label="Von vorn" text="↺" onClick={() => onVideo({ key: keyFor(i), cmd: 'restart' })} />
+                  <VideoButton label="Pause" icon="pause" onClick={() => onVideo({ key: keyFor(i), cmd: 'pause' })} />
+                  <VideoButton label="Von vorn" icon="restart" onClick={() => onVideo({ key: keyFor(i), cmd: 'restart' })} />
                 </span>
               )}
             </li>
@@ -433,16 +498,16 @@ function Block({
   )
 }
 
-function VideoButton({ label, icon, text, onClick }: { label: string; icon?: 'play'; text?: string; onClick: () => void }) {
+function VideoButton({ label, icon, onClick }: { label: string; icon: IconName; onClick: () => void }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="grid size-10 place-items-center rounded-lg border border-felt-600 text-cream-100 hover:border-gold-500"
+      className="grid size-10 place-items-center rounded-xl border border-white/10 text-cream-100 transition-colors hover:border-gold-400/60 active:scale-95"
     >
-      {icon ? <Icon name={icon} className="size-4" /> : <span className="text-sm">{text}</span>}
+      <Icon name={icon} weight="fill" className="size-4" />
     </button>
   )
 }

@@ -115,32 +115,52 @@ export function Library() {
     setSorting(failed ? { running: false, done, failed, total } : null)
   }
 
-  return (
-    <Shell title="Bibliothek" back="/">
-      <div className="-mt-2 mb-4 flex items-center gap-2">
-        <label className="relative flex-1">
-          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-cream-300" />
-          <input className="field pl-9" type="search" placeholder="Suchen" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </label>
-        <Link to="/kategorien" className="btn btn-ghost shrink-0 px-3" aria-label="Kategorien verwalten" title="Kategorien verwalten">
-          <Icon name="tag" />
-        </Link>
-      </div>
+  const statusKeys = Object.keys(STATUS_LABELS) as StatusFilter[]
+  const statusIndex = statusKeys.indexOf(status)
 
-      <div className="mb-3 grid grid-cols-4 gap-1 rounded-lg bg-felt-950/50 p-1 text-sm">
-        {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((s) => (
+  return (
+    <Shell
+      title="Bibliothek"
+      back="/"
+      actions={
+        <Link to="/kategorien" className="btn btn-ghost btn-icon" aria-label="Kategorien verwalten" title="Kategorien verwalten">
+          <Icon name="tag" weight="duotone" className="size-5 text-gold-300" />
+        </Link>
+      }
+    >
+      <label className="relative mb-3 block">
+        <Icon name="search" className="pointer-events-none absolute top-1/2 left-3.5 size-[1.1rem] -translate-y-1/2 text-cream-400" />
+        <input
+          className="field pl-10"
+          type="search"
+          aria-label="Fragen durchsuchen"
+          placeholder="Suchen"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </label>
+
+      <div role="tablist" aria-label="Status" className="relative mb-4 grid grid-cols-4 rounded-xl bg-felt-950/60 p-1 text-sm ring-1 ring-white/[0.06]">
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-felt-700 shadow-[var(--shadow-lift)] transition-transform duration-300 ease-[var(--ease-out-expo)]"
+          style={{ transform: `translateX(${statusIndex * 100}%)` }}
+        />
+        {statusKeys.map((s) => (
           <button
             key={s}
             type="button"
+            role="tab"
+            aria-selected={status === s}
             onClick={() => setStatus(s)}
-            className={`rounded-md py-1.5 transition-colors ${status === s ? 'bg-felt-700 text-cream-50' : 'text-cream-300 hover:text-cream-100'}`}
+            className={`relative rounded-lg py-2 font-medium transition-colors ${status === s ? 'text-cream-50' : 'text-cream-400 hover:text-cream-100'}`}
           >
             {STATUS_LABELS[s]}
           </button>
         ))}
       </div>
 
-      <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         <Chip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')}>
           Alle <Count n={total} />
         </Chip>
@@ -158,8 +178,8 @@ export function Library() {
       </div>
 
       {(unsorted.length > 0 || sorting) && (
-        <div className="card mb-4 flex items-center justify-between gap-3 px-4 py-3">
-          <p className="text-sm text-cream-300">
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-gold-400/25 bg-gold-400/[0.06] px-4 py-3">
+          <p className="text-sm text-cream-200">
             {sorting?.running
               ? `KI ordnet ein … ${sorting.done + sorting.failed} von ${sorting.total}`
               : sorting
@@ -167,55 +187,60 @@ export function Library() {
                 : `${unsorted.length} ${unsorted.length === 1 ? 'Frage' : 'Fragen'} ohne Kategorie`}
           </p>
           {unsorted.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-ghost shrink-0 px-3 py-1.5 text-sm"
-              disabled={sorting?.running}
-              onClick={sortWithAi}
-            >
-              <Icon name="sparkle" className="size-4 text-gold-400" /> Einordnen
+            <button type="button" className="btn btn-ghost shrink-0 px-3 py-2 text-sm" disabled={sorting?.running} onClick={sortWithAi}>
+              <Icon name="sparkle" weight="duotone" className={`size-4 text-gold-300 ${sorting?.running ? 'animate-spin' : ''}`} /> Einordnen
             </button>
           )}
         </div>
       )}
 
-      {error && <p className="text-chip-red">{error}</p>}
-      {!questions && !error && <p className="text-cream-300">Lädt …</p>}
+      {error && <p className="text-danger">{error}</p>}
+      {!questions && !error && <p className="text-cream-400">Lädt …</p>}
       {questions && questions.length === 0 && (
-        <div className="card p-6 text-center">
-          <p className="font-display text-xl text-cream-50">Noch keine Fragen</p>
-          <p className="mt-1 text-cream-300">Leg mit der ersten Schätzfrage los.</p>
+        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+          <Icon name="cards" weight="duotone" className="size-14 text-gold-300/80" />
+          <p className="font-display text-2xl font-semibold text-cream-50">Noch keine Fragen</p>
+          <p className="max-w-[28ch] text-cream-400">Die erste Schätzfrage ist schnell notiert – Hinweise und Lösung kannst du später ergänzen.</p>
+          <Link to="/erfassen" className="btn btn-primary mt-3">
+            <Icon name="plus" weight="bold" className="size-4" /> Frage erfassen
+          </Link>
         </div>
       )}
-      {questions && questions.length > 0 && filtered.length === 0 && (
-        <p className="text-cream-300">Keine Fragen für diesen Filter.</p>
-      )}
+      {questions && questions.length > 0 && filtered.length === 0 && <p className="py-8 text-center text-cream-400">Keine Fragen für diesen Filter.</p>}
 
-      <ul className="flex flex-col gap-2 pb-24">
-        {filtered.map((q) => (
-          <li key={q.id}>
-            <Link to={`/frage/${q.id}`} className="card flex flex-col gap-1.5 px-4 py-3 transition-colors hover:border-gold-500">
-              <div className="flex items-start justify-between gap-3">
-                <span className="font-display text-lg leading-snug text-cream-50">{q.title || 'Ohne Überschrift'}</span>
-                {q.answer != null && <span className="shrink-0 pt-0.5 text-sm text-gold-300 tabular-nums">{formatAnswer(q)}</span>}
-              </div>
-              <p className="line-clamp-2 text-sm text-cream-300">{q.question}</p>
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <CategoryBadge category={q.category_id ? byId.get(q.category_id) : undefined} />
-                {q.status === 'draft' && <span className="rounded-full bg-felt-950 px-2 py-0.5 text-xs text-cream-300">Entwurf</span>}
-                {q.played_at && <span className="rounded-full bg-felt-950 px-2 py-0.5 text-xs text-cream-300">gespielt</span>}
-              </div>
-            </Link>
-          </li>
-        ))}
+      <ul className="flex flex-col gap-2.5 pb-28">
+        {filtered.map((q, i) => {
+          const cat = q.category_id ? byId.get(q.category_id) : undefined
+          return (
+            <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}>
+              <Link to={`/frage/${q.id}`} className="card relative flex flex-col gap-2 overflow-hidden px-4 py-3.5">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-display text-[1.2rem] leading-snug font-semibold text-cream-50">{q.title || 'Ohne Überschrift'}</span>
+                  {q.answer != null && (
+                    <span className="shrink-0 pt-0.5 font-display text-[1.05rem] font-semibold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
+                  )}
+                </div>
+                <p className="line-clamp-2 text-sm leading-relaxed text-cream-300">{q.question}</p>
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <CategoryBadge category={cat} />
+                  {q.status === 'draft' && <Tag>Entwurf</Tag>}
+                  {q.status === 'ready' && !q.played_at && <Tag tone="gold">spielbereit</Tag>}
+                  {q.played_at && <Tag>gespielt</Tag>}
+                </div>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
 
       <Link
         to="/erfassen"
         aria-label="Neue Frage"
-        className="fixed right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] grid size-14 place-items-center rounded-full bg-gold-400 text-felt-950 shadow-lg shadow-black/40 hover:bg-gold-300"
+        className="group fixed right-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20 grid size-16 place-items-center rounded-full text-felt-950 shadow-[0_14px_30px_-10px_rgb(0_0_0/0.9)] transition-transform active:scale-95"
+        style={{ background: 'radial-gradient(circle at 35% 30%, #f6e3ad, #d1a446 55%, #a57a28)' }}
       >
-        <Icon name="plus" className="size-7" />
+        <span className="absolute inset-[5px] rounded-full border-2 border-dashed border-cream-50/60 transition-transform duration-500 group-hover:rotate-45" />
+        <Icon name="plus" weight="bold" className="relative size-7" />
       </Link>
     </Shell>
   )
@@ -226,8 +251,9 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition-colors ${
-        active ? 'border-gold-400 bg-gold-400/15 text-cream-50' : 'border-felt-600 text-cream-300 hover:text-cream-100'
+      aria-pressed={active}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+        active ? 'border-gold-400/70 bg-gold-400/15 text-cream-50' : 'border-white/10 text-cream-300 hover:border-white/20 hover:text-cream-100'
       }`}
     >
       {children}
@@ -236,5 +262,17 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 }
 
 function Count({ n }: { n: number }) {
-  return <span className="text-xs text-cream-300 tabular-nums">{n}</span>
+  return <span className="text-xs text-cream-400 tabular-nums">{n}</span>
+}
+
+function Tag({ children, tone }: { children: React.ReactNode; tone?: 'gold' }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+        tone === 'gold' ? 'bg-gold-400/15 text-gold-200' : 'bg-felt-950/70 text-cream-400'
+      }`}
+    >
+      {children}
+    </span>
+  )
 }
