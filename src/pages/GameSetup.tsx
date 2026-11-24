@@ -79,7 +79,7 @@ export function GameSetup() {
             </span>
             <span className="text-sm font-medium text-gold-200">Läuft gerade</span>
           </div>
-          <p className="mt-1.5 font-display text-2xl font-semibold text-cream-50">{openGame.name}</p>
+          <p className="mt-1.5 font-display text-2xl font-extrabold text-cream-50">{openGame.name}</p>
           <p className="text-sm text-cream-400">
             {openGame.state.completed ?? 0} {(openGame.state.completed ?? 0) === 1 ? 'Frage' : 'Fragen'} gespielt
           </p>
@@ -104,7 +104,7 @@ export function GameSetup() {
           <div className="relative">
             <Icon name="tv" weight="duotone" className="pointer-events-none absolute top-1/2 left-4 size-6 -translate-y-1/2 text-gold-300" />
             <input
-              className="field py-3.5 pl-14 font-display text-2xl font-semibold tracking-[0.35em] text-gold-200 uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
+              className="field py-3.5 pl-14 font-display text-2xl font-extrabold tracking-[0.35em] text-gold-200 uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
               aria-label="TV-Code"
               placeholder="TV-Code"
               autoCapitalize="characters"

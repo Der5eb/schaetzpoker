@@ -86,7 +86,7 @@ export function Categories() {
               aria-expanded={openId === c.id}
             >
               <span className="size-3.5 shrink-0 rounded-full ring-4 ring-black/20" style={{ background: c.color }} />
-              <span className="flex-1 font-display text-lg font-semibold text-cream-50">{c.name}</span>
+              <span className="flex-1 font-display text-lg font-extrabold text-cream-50">{c.name}</span>
               <span className="text-sm text-cream-400 tabular-nums">
                 {counts.get(c.id) ?? 0} {(counts.get(c.id) ?? 0) === 1 ? 'Frage' : 'Fragen'}
               </span>

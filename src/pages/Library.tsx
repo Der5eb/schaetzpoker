@@ -199,7 +199,7 @@ export function Library() {
       {questions && questions.length === 0 && (
         <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
           <Icon name="cards" weight="duotone" className="size-14 text-gold-300/80" />
-          <p className="font-display text-2xl font-semibold text-cream-50">Noch keine Fragen</p>
+          <p className="font-display text-2xl font-extrabold text-cream-50">Noch keine Fragen</p>
           <p className="max-w-[28ch] text-cream-400">Die erste Schätzfrage ist schnell notiert – Hinweise und Lösung kannst du später ergänzen.</p>
           <Link to="/erfassen" className="btn btn-primary mt-3">
             <Icon name="plus" weight="bold" className="size-4" /> Frage erfassen
@@ -215,9 +215,9 @@ export function Library() {
             <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 35, 280)}ms` }}>
               <Link to={`/frage/${q.id}`} className="card relative flex flex-col gap-2 overflow-hidden px-4 py-3.5">
                 <div className="flex items-start justify-between gap-4">
-                  <span className="font-display text-[1.2rem] leading-snug font-semibold text-cream-50">{q.title || 'Ohne Überschrift'}</span>
+                  <span className="font-display text-[1.2rem] leading-snug font-extrabold text-cream-50">{q.title || 'Ohne Überschrift'}</span>
                   {q.answer != null && (
-                    <span className="shrink-0 pt-0.5 font-display text-[1.05rem] font-semibold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
+                    <span className="shrink-0 pt-0.5 font-display text-[1.05rem] font-extrabold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
                   )}
                 </div>
                 <p className="line-clamp-2 text-sm leading-relaxed text-cream-300">{q.question}</p>

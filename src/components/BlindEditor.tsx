@@ -29,7 +29,7 @@ export function BlindEditor({ levels, perLevel, onChange, currentLevel }: Props)
         <span className="text-cream-100">Erhöhen nach je</span>
         <span className="flex items-center gap-2.5">
           <input
-            className="field w-16 px-2 py-2 text-center font-display text-lg font-semibold tabular-nums"
+            className="field w-16 px-2 py-2 text-center font-display text-lg font-extrabold tabular-nums"
             inputMode="numeric"
             aria-label="Fragen pro Blind-Stufe"
             value={perLevelText}
@@ -63,7 +63,7 @@ export function BlindEditor({ levels, perLevel, onChange, currentLevel }: Props)
                 {current ? (
                   <Icon name="chip" weight="fill" className="size-4 text-gold-300" />
                 ) : (
-                  <span className="w-4 text-center font-display font-semibold tabular-nums">{i + 1}</span>
+                  <span className="w-4 text-center font-display font-extrabold tabular-nums">{i + 1}</span>
                 )}
                 {current && <span className="text-xs font-semibold text-gold-200">jetzt</span>}
               </span>

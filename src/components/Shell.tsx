@@ -22,7 +22,7 @@ export function Shell({
             <Icon name="back" className="size-6" />
           </Link>
         )}
-        <h1 className="min-w-0 flex-1 truncate font-display text-[1.75rem] leading-tight font-semibold text-cream-50">{title}</h1>
+        <h1 className="min-w-0 flex-1 truncate font-display text-[1.75rem] leading-tight font-extrabold text-cream-50">{title}</h1>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </header>
       <main className="animate-enter flex flex-1 flex-col">{children}</main>
@@ -34,7 +34,7 @@ export function Shell({
 export function SectionTitle({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
   return (
     <h2 className="flex items-baseline gap-2">
-      <span className="font-display text-xl font-semibold text-cream-50">{children}</span>
+      <span className="font-display text-xl font-extrabold text-cream-50">{children}</span>
       {hint && <span className="text-sm text-cream-400">{hint}</span>}
     </h2>
   )

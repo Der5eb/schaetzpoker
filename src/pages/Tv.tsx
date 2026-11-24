@@ -135,16 +135,16 @@ function TopBar({ d }: { d: DisplayState }) {
       <div className="text-cream-300">
         {d.phase === 'round' || d.phase === 'category' ? (
           <span className="flex items-baseline gap-[0.4em]">
-            Frage <span className="font-display text-[1.6em] leading-none font-semibold text-cream-50 tabular-nums">{d.questionNumber}</span>
+            Frage <span className="font-display text-[1.6em] leading-none font-extrabold text-cream-50 tabular-nums">{d.questionNumber}</span>
           </span>
         ) : (
-          <span className="font-display text-[1.2em] font-semibold text-cream-100">{d.gameName}</span>
+          <span className="font-display text-[1.2em] font-extrabold text-cream-100">{d.gameName}</span>
         )}
       </div>
       <div className="flex flex-col items-end gap-[0.3vh]">
         <span className="flex items-center gap-[0.5em]">
           <ChipMark className="size-[1.7em] drop-shadow-[0_0.3vh_0.6vh_rgba(0,0,0,0.6)]" />
-          <span className="font-display text-[1.5em] leading-none font-semibold text-cream-50 tabular-nums">{formatBlinds(d.blinds)}</span>
+          <span className="font-display text-[1.5em] leading-none font-extrabold text-cream-50 tabular-nums">{formatBlinds(d.blinds)}</span>
         </span>
         {d.phase !== 'blinds' && <span className="text-[0.72em] text-cream-400">{increaseText}</span>}
       </div>
@@ -185,7 +185,7 @@ function Waiting({ code, pairUrl }: { code: string; pairUrl: string }) {
           <p className="max-w-[26vw] text-[clamp(1rem,1.5vw,2rem)] leading-snug text-cream-300">
             Spielleitung: QR-Code mit dem Handy scannen oder diesen Code eingeben
           </p>
-          <p className="font-display text-[clamp(2.5rem,5.5vw,7rem)] leading-none font-semibold tracking-[0.18em] text-gold-200">{code}</p>
+          <p className="font-display text-[clamp(2.5rem,5.5vw,7rem)] leading-none font-extrabold tracking-[0.18em] text-gold-200">{code}</p>
         </div>
       </div>
     </Center>
@@ -196,10 +196,10 @@ function Lobby({ d }: { d: DisplayState }) {
   return (
     <Center className="gap-[4vh]">
       <ChipMark className="size-[12vh] drop-shadow-[0_1.4vh_2.4vh_rgba(0,0,0,0.6)]" />
-      <h1 className="max-w-[80vw] font-display text-[clamp(3rem,7vw,8.5rem)] leading-[1.02] font-semibold text-cream-50">{d.gameName}</h1>
+      <h1 className="max-w-[80vw] font-display text-[clamp(3rem,7vw,8.5rem)] leading-[1.02] font-extrabold text-cream-50">{d.gameName}</h1>
       <p className="flex items-center gap-[1vw] text-[clamp(1.2rem,2.2vw,2.8rem)] text-cream-300">
         Start-Blinds
-        <span className="font-display font-semibold text-gold-200 tabular-nums">{formatBlinds(d.blinds)}</span>
+        <span className="font-display font-extrabold text-gold-200 tabular-nums">{formatBlinds(d.blinds)}</span>
       </p>
     </Center>
   )
@@ -209,7 +209,7 @@ function CategoryPick({ d }: { d: DisplayState }) {
   const n = d.categories.length
   return (
     <div className="flex min-h-0 flex-1 flex-col justify-center gap-[6vh]">
-      <h1 className="text-center font-display text-[clamp(2.2rem,4.4vw,5.6rem)] leading-tight font-semibold text-cream-50">
+      <h1 className="text-center font-display text-[clamp(2.2rem,4.4vw,5.6rem)] leading-tight font-extrabold text-cream-50">
         Der Big Blind wählt <em className="font-normal text-gold-200 italic">eine Kategorie</em>
       </h1>
       {n === 0 ? (
@@ -234,11 +234,11 @@ function CategoryPick({ d }: { d: DisplayState }) {
                 <span className="flex items-center gap-[0.5vw]">
                   <span className="size-[1.3vw] rounded-full shadow-inner" style={{ background: c.color }} />
                 </span>
-                <span className="text-center font-display text-[clamp(1.2rem,2.1vw,2.9rem)] leading-tight font-semibold text-balance text-ink">
+                <span className="text-center font-display text-[clamp(1.2rem,2.1vw,2.9rem)] leading-tight font-extrabold text-balance text-ink">
                   {c.name}
                 </span>
                 <span className="flex items-center justify-end gap-[0.4vw] text-[clamp(0.85rem,1.1vw,1.4rem)] text-ink-soft">
-                  <span className="font-display font-semibold tabular-nums">{c.count}</span> {c.count === 1 ? 'Frage' : 'Fragen'}
+                  <span className="font-display font-extrabold tabular-nums">{c.count}</span> {c.count === 1 ? 'Frage' : 'Fragen'}
                 </span>
               </li>
             )
@@ -293,7 +293,7 @@ function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistr
     <div className="flex min-h-0 flex-1 flex-col justify-center gap-[4vh]">
       <div className="flex flex-col items-center gap-[2.5vh] text-center">
         <h1
-          className={`max-w-[84vw] font-display leading-[1.08] font-semibold text-cream-50 drop-shadow-[0_0.4vh_1vh_rgba(0,0,0,0.45)] transition-[font-size] duration-700 ease-[var(--ease-out-expo)] ${
+          className={`max-w-[84vw] font-display leading-[1.08] font-extrabold text-cream-50 drop-shadow-[0_0.4vh_1vh_rgba(0,0,0,0.45)] transition-[font-size] duration-700 ease-[var(--ease-out-expo)] ${
             hasHints ? 'text-[clamp(1.6rem,3.2vw,4.4rem)]' : 'text-[clamp(2.2rem,5vw,6.6rem)]'
           }`}
         >
@@ -324,7 +324,7 @@ function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistr
                 />
                 Hinweis {i + 1}
               </span>
-              {h.text && <p className="font-display text-[clamp(1.2rem,2.2vw,3rem)] leading-snug font-medium text-ink">{h.text}</p>}
+              {h.text && <p className="font-display text-[clamp(1.2rem,2.2vw,3rem)] leading-snug font-bold text-ink">{h.text}</p>}
               <MediaGallery media={h.media} keyFor={(j) => mediaKey.hint(i + 1, j)} registry={videos} size="sm" />
             </section>
           ))}
@@ -346,7 +346,7 @@ function Solution({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
           <div className="playing-card flex min-w-[min(44vw,52rem)] flex-col items-center gap-[1vh] px-[4vw] py-[4.5vh] [backface-visibility:hidden]">
             <Icon name="spade" weight="fill" className="absolute top-[2.2vh] left-[1.6vw] size-[2.2vw] text-ink" />
             <Icon name="spade" weight="fill" className="absolute right-[1.6vw] bottom-[2.2vh] size-[2.2vw] rotate-180 text-ink" />
-            <span className="font-display text-[clamp(3rem,8.5vw,11rem)] leading-none font-semibold text-ink tabular-nums">{a.display}</span>
+            <span className="font-display text-[clamp(3rem,8.5vw,11rem)] leading-none font-black text-ink tabular-nums">{a.display}</span>
           </div>
           <div className="card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]" />
         </div>
@@ -365,7 +365,7 @@ function Solution({ d, videos }: { d: DisplayState; videos: VideoRegistry }) {
 function BlindsUp({ d }: { d: DisplayState }) {
   return (
     <Center className="gap-[5vh]">
-      <h1 className="font-display text-[clamp(2.5rem,6vw,7.5rem)] leading-none font-semibold text-cream-50">
+      <h1 className="font-display text-[clamp(2.5rem,6vw,7.5rem)] leading-none font-extrabold text-cream-50">
         Die Blinds <em className="font-normal text-gold-200 italic">steigen</em>
       </h1>
       <div className="flex items-end gap-[4vw]">

@@ -105,7 +105,7 @@ export function GameMaster() {
     <Frame>
       <header className="mb-6">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="min-w-0 truncate font-display text-[1.6rem] leading-tight font-semibold text-cream-50">{game.name}</h1>
+          <h1 className="min-w-0 truncate font-display text-[1.6rem] leading-tight font-extrabold text-cream-50">{game.name}</h1>
           <span
             className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
               tvOnline ? 'bg-ok/12 text-ok' : 'bg-danger/12 text-danger'
@@ -164,7 +164,7 @@ export function GameMaster() {
               {s.decided ? 'Runde entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
             </span>
           </div>
-          <h2 className="font-display text-[1.75rem] leading-tight font-semibold text-cream-50">{question.title}</h2>
+          <h2 className="font-display text-[1.75rem] leading-tight font-extrabold text-cream-50">{question.title}</h2>
 
           <Block label="Frage" icon="cards" shown text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
           <Block label="Hinweis 1" icon="club" shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
@@ -236,7 +236,7 @@ export function GameMaster() {
       {s.phase === 'blinds' && (
         <div className="animate-enter flex flex-col items-center gap-4 py-8 text-center">
           <p className="text-cream-300">Der TV kündigt die neuen Blinds an</p>
-          <p className="flex items-center gap-3 font-display text-5xl font-semibold text-gold-200 tabular-nums">
+          <p className="flex items-center gap-3 font-display text-5xl font-extrabold text-gold-200 tabular-nums">
             <ChipMark className="size-11" />
             {formatBlinds(info.current)}
           </p>
@@ -284,7 +284,7 @@ function Stat({ label, value, chip }: { label: string; value: string; chip?: boo
   return (
     <div className="flex flex-col items-center gap-0.5 px-2">
       <dt className="text-[0.7rem] font-medium text-cream-400">{label}</dt>
-      <dd className="flex items-center gap-1.5 font-display text-lg leading-tight font-semibold text-cream-50 tabular-nums">
+      <dd className="flex items-center gap-1.5 font-display text-lg leading-tight font-extrabold text-cream-50 tabular-nums">
         {chip && <ChipMark className="size-4" />}
         {value}
       </dd>
@@ -331,11 +331,11 @@ function RoomCodeForm({ current, onSave }: { current: string; onSave: (code: str
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-cream-300">
-        Aktueller Code: <span className="font-display font-semibold tracking-[0.2em] text-cream-50">{current}</span>. Neuen Code vom TV eintippen:
+        Aktueller Code: <span className="font-display font-extrabold tracking-[0.2em] text-cream-50">{current}</span>. Neuen Code vom TV eintippen:
       </p>
       <div className="flex gap-2">
         <input
-          className="field text-center font-display text-xl font-semibold tracking-[0.3em] uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
+          className="field text-center font-display text-xl font-extrabold tracking-[0.3em] uppercase placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
           aria-label="Neuer TV-Code"
           placeholder="TV-Code"
           value={code}
@@ -378,7 +378,7 @@ function CategoryStep({
         >
           <Icon name="back" className="size-4" /> Andere Kategorie
         </button>
-        <h2 className="flex items-center gap-2.5 font-display text-[1.75rem] font-semibold text-cream-50">
+        <h2 className="flex items-center gap-2.5 font-display text-[1.75rem] font-extrabold text-cream-50">
           <span className="size-3.5 rounded-full ring-4 ring-black/20" style={{ background: entry?.c.color }} />
           {entry?.c.name}
         </h2>
@@ -390,8 +390,8 @@ function CategoryStep({
             <li key={q.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}>
               <button type="button" className="card flex w-full flex-col gap-1.5 px-4 py-3.5 text-left" onClick={() => onStart(q)}>
                 <span className="flex items-start justify-between gap-3">
-                  <span className="font-display text-xl leading-snug font-semibold text-cream-50">{q.title}</span>
-                  <span className="shrink-0 pt-0.5 font-display font-semibold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
+                  <span className="font-display text-xl leading-snug font-extrabold text-cream-50">{q.title}</span>
+                  <span className="shrink-0 pt-0.5 font-display font-extrabold text-gold-200 tabular-nums">{formatAnswer(q)}</span>
                 </span>
                 <span className="line-clamp-2 text-sm text-cream-300">{q.question}</span>
               </button>
@@ -418,7 +418,7 @@ function CategoryStep({
           <li key={c.id} className="animate-enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
             <button type="button" onClick={() => onPick(c.id)} className="card relative flex h-full w-full flex-col items-start gap-1 overflow-hidden px-4 pt-5 pb-3.5 text-left">
               <span className="absolute inset-x-0 top-0 h-1" style={{ background: c.color }} />
-              <span className="font-display text-xl leading-tight font-semibold text-cream-50">{c.name}</span>
+              <span className="font-display text-xl leading-tight font-extrabold text-cream-50">{c.name}</span>
               <span className="text-sm text-cream-400">
                 {qs.length} {qs.length === 1 ? 'Frage' : 'Fragen'}
               </span>
@@ -464,7 +464,7 @@ function Block({
           {shown ? 'am TV' : 'verdeckt'}
         </span>
       </div>
-      {highlight && <p className="font-display text-4xl font-semibold text-gold-200 tabular-nums">{highlight}</p>}
+      {highlight && <p className="font-display text-4xl font-extrabold text-gold-200 tabular-nums">{highlight}</p>}
       {text && <p className={`leading-relaxed whitespace-pre-wrap ${shown ? 'text-cream-50' : 'text-cream-200'}`}>{text}</p>}
       {media.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">

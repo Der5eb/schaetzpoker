@@ -231,7 +231,7 @@ export function QuestionEditor() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-gold-200">Gespeichert</p>
-              <p className="mt-0.5 font-display text-xl leading-snug font-semibold text-cream-50">{original.title}</p>
+              <p className="mt-0.5 font-display text-xl leading-snug font-extrabold text-cream-50">{original.title}</p>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-cream-300">
                 {category && <span className="size-2 rounded-full" style={{ background: category.color }} />}
                 {category?.name ?? 'ohne Kategorie'}
@@ -274,7 +274,7 @@ export function QuestionEditor() {
             <label className="flex flex-[2] flex-col gap-1.5">
               <span className="label">Zahl</span>
               <input
-                className="field font-display text-xl font-semibold tabular-nums"
+                className="field font-display text-xl font-extrabold tabular-nums"
                 inputMode="decimal"
                 placeholder="8849"
                 value={answerText}
@@ -290,7 +290,7 @@ export function QuestionEditor() {
             <p className="text-sm text-danger">Keine gültige Zahl – z. B. 8849 oder 3,14.</p>
           ) : current.answer != null ? (
             <p className="text-sm text-cream-400">
-              Am TV: <span className="font-display text-base font-semibold text-gold-200">{formatAnswer(current)}</span>
+              Am TV: <span className="font-display text-base font-extrabold text-gold-200">{formatAnswer(current)}</span>
             </p>
           ) : null}
           <label className="flex flex-col gap-1.5">
@@ -406,7 +406,7 @@ function Step({ icon, title, hint, last, children }: { icon: IconName; title: st
       </div>
       <div className={`flex min-w-0 flex-col gap-3 ${last ? '' : 'pb-8'}`}>
         <h2 className="flex min-h-9 items-baseline gap-2 pt-1">
-          <span className="font-display text-xl font-semibold text-cream-50">{title}</span>
+          <span className="font-display text-xl font-extrabold text-cream-50">{title}</span>
           {hint && <span className="text-sm text-cream-400">{hint}</span>}
         </h2>
         {children}

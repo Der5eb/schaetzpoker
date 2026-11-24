@@ -51,7 +51,7 @@ export function Home() {
             <Icon name="pencil" weight="duotone" className="size-6" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-display text-2xl leading-tight font-semibold">Frage erfassen</span>
+            <span className="block font-display text-2xl leading-tight font-extrabold">Frage erfassen</span>
             <span className="block text-sm text-felt-900/80">Frage, zwei Hinweise, Lösung</span>
           </span>
           <Icon name="plus" weight="bold" className="size-6 transition-transform group-hover:rotate-90" />
