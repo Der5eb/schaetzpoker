@@ -472,7 +472,7 @@ function BlindsUp({ d }: { d: DisplayState }) {
         Die Blinds <em className="font-normal text-gold-200 italic">steigen</em>
       </h1>
       <div className="flex items-end gap-[4vw]">
-        <ChipStack count={7} className="h-[34vh] w-auto drop-shadow-[0_1vh_1.5vh_rgba(0,0,0,0.45)]" />
+        <ChipStack className="h-[30vh] w-auto drop-shadow-[0_1vh_1.5vh_rgba(0,0,0,0.45)]" />
         <div className="flex flex-col items-start gap-[1.5vh] pb-[2vh] font-display tabular-nums">
           {d.previousBlinds && (
             <span className="relative text-[clamp(1.4rem,3.2vw,4rem)] leading-none text-cream-400">
