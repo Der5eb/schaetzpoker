@@ -136,7 +136,7 @@ function TimeInput({ label, value, onChange }: { label: string; value?: number; 
     <label className="flex items-center gap-1.5">
       <span className="text-cream-400">{label}</span>
       <input
-        className="field w-20 px-2 py-1 text-sm"
+        className="field min-h-11 w-20 px-2 py-1 text-sm"
         inputMode="numeric"
         placeholder="m:ss"
         value={text}
@@ -187,8 +187,8 @@ function YouTubeForm({ onAdd, onCancel }: { onAdd: (m: Media) => void; onCancel:
         </label>
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn btn-ghost py-1.5 text-sm" onClick={onCancel}>Abbrechen</button>
-        <button type="button" className="btn btn-primary py-1.5 text-sm" disabled={!parsed} onClick={submit}>Hinzufügen</button>
+        <button type="button" className="btn btn-ghost min-h-11 py-1.5 text-sm" onClick={onCancel}>Abbrechen</button>
+        <button type="button" className="btn btn-primary min-h-11 py-1.5 text-sm" disabled={!parsed} onClick={submit}>Hinzufügen</button>
       </div>
     </div>
   )

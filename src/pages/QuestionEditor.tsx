@@ -236,6 +236,11 @@ export function QuestionEditor() {
                 {category && <span className="size-2 rounded-full" style={{ background: category.color }} />}
                 {category?.name ?? 'ohne Kategorie'}
               </p>
+              {original.status === 'draft' && (
+                <p className="mt-2 text-sm text-gold-200">
+                  Als Entwurf gespeichert{missingForReady(toInput(original)).length ? ` – es fehlt noch: ${missingForReady(toInput(original)).join(', ')}` : ''}.
+                </p>
+              )}
               {navState?.aiFailed && (
                 <p className="mt-2 text-sm text-gold-200">KI nicht erreichbar – Überschrift und Kategorie unten ergänzen.</p>
               )}
@@ -363,7 +368,7 @@ export function QuestionEditor() {
             {form.played_at && (
               <div className="flex items-center justify-between gap-3 text-sm text-cream-400">
                 <span>Gespielt am {new Date(form.played_at).toLocaleDateString('de-DE')}</span>
-                <button type="button" className="btn btn-ghost px-3 py-1.5 text-sm" onClick={() => set('played_at', null)}>
+                <button type="button" className="btn btn-ghost min-h-11 px-3 py-1.5 text-sm" onClick={() => set('played_at', null)}>
                   Wieder freigeben
                 </button>
               </div>

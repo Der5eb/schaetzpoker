@@ -10,7 +10,7 @@ export function availableQuestions(questions: Question[]): Question[] {
 
 /** Baut aus dem vollständigen Spielstand das, was der TV sehen darf. */
 export function buildDisplay(
-  game: Pick<Game, 'name' | 'blind_levels' | 'questions_per_level'>,
+  game: Pick<Game, 'name' | 'blind_levels' | 'questions_per_level' | 'started_at'>,
   state: GameState,
   categories: Category[],
   questions: Question[],
@@ -28,7 +28,11 @@ export function buildDisplay(
     phase: state.phase,
     gameName: game.name,
     questionNumber: state.completed + 1,
-    blinds: info.current,
+    // Am Ende: die Blinds der zuletzt gespielten Frage statt der nächsten Stufe
+    blinds:
+      state.phase === 'ended'
+        ? blindInfo(game.blind_levels, game.questions_per_level, Math.max(0, state.completed - 1)).current
+        : info.current,
     nextBlinds: info.next,
     untilIncrease: info.untilIncrease,
     previousBlinds: state.phase === 'blinds' && info.levelIndex > 0 ? levelAt(game.blind_levels, info.levelIndex - 1) : null,
@@ -53,6 +57,7 @@ export function buildDisplay(
         : null,
     reveal,
     decided: state.decided,
+    startedAt: game.started_at,
     focus: q && state.focus && isZoomable(state.focus, reveal) ? state.focus : null,
   }
 }

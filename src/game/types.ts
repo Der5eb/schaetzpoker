@@ -57,6 +57,8 @@ export interface DisplayState {
   decided: boolean
   /** Groß gezeigtes Medium (nur bereits aufgedeckte), sonst null */
   focus: string | null
+  /** Beginn des Abends (für den Abschluss „Der Abend in Zahlen“) */
+  startedAt: string
 }
 
 export type VideoCommand = { key: string; cmd: 'play' | 'pause' | 'restart' }

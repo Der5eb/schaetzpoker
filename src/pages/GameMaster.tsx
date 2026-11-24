@@ -4,6 +4,7 @@ import { BlindEditor } from '../components/BlindEditor'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HoldButton } from '../components/HoldButton'
 import { Peek } from '../components/Peek'
 import { ActionBar } from '../components/Shell'
@@ -28,6 +29,7 @@ export function GameMaster() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmEnd, setConfirmEnd] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -96,7 +98,7 @@ export function GameMaster() {
   }
 
   async function finishGame() {
-    if (!game || !window.confirm('Spielabend beenden?')) return
+    if (!game) return
     await save({ finished_at: new Date().toISOString(), state: { ...s, phase: 'ended' } })
     navigate('/')
   }
@@ -212,6 +214,9 @@ export function GameMaster() {
             <HoldButton
               className="btn btn-primary w-full py-3 text-lg"
               disabled={busy}
+              confirmTitle={s.reveal < 3 ? `${NEXT_LABELS[s.reveal][0].toUpperCase()}${NEXT_LABELS[s.reveal].slice(1)} aufdecken?` : 'Runde beenden?'}
+              confirmLabel={s.reveal < 3 ? 'Aufdecken' : 'Runde beenden'}
+              confirmBody={s.reveal < 3 ? 'Der ganze Tisch sieht es sofort am TV.' : 'Die Frage wird als gespielt markiert.'}
               onConfirm={() => (s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound())}
             >
               <Icon name={s.reveal < 3 ? 'eye' : 'flag'} weight="duotone" className="size-6" />
@@ -240,6 +245,10 @@ export function GameMaster() {
                 <HoldButton
                   className="btn btn-ghost flex-1 py-1.5 text-sm"
                   fill="rgb(209 164 70 / 0.3)"
+                  hint="halten oder tippen"
+                  confirmTitle="Lösung sofort zeigen?"
+                  confirmLabel="Lösung zeigen"
+                  confirmBody="Nur noch ein Spieler ist dabei – die übrigen Hinweise werden übersprungen."
                   onConfirm={() => setState({ reveal: 3, decided: true })}
                 >
                   <Icon name="crown" className="size-4" /> Nur 1 Spieler übrig
@@ -274,6 +283,20 @@ export function GameMaster() {
 
       {s.phase === 'ended' && <p className="text-cream-300">Dieser Spielabend ist beendet.</p>}
 
+      <ConfirmDialog
+        open={confirmEnd}
+        danger
+        title="Spielabend beenden?"
+        confirmLabel="Abend beenden"
+        onCancel={() => setConfirmEnd(false)}
+        onConfirm={() => {
+          setConfirmEnd(false)
+          finishGame()
+        }}
+      >
+        Der TV zeigt danach den Abschluss mit dem Abend in Zahlen.
+      </ConfirmDialog>
+
       {s.phase !== 'round' && s.phase !== 'ended' && (
         <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && s.categoryId ? 'pb-44' : ''}`}>
           <Collapsible title="Blinds anpassen" icon="stack">
@@ -287,7 +310,7 @@ export function GameMaster() {
           <Collapsible title="TV neu verbinden" icon="tv">
             <RoomCodeForm current={game.room_code} onSave={(code) => save({ room_code: code })} />
           </Collapsible>
-          <button type="button" className="btn btn-danger mt-4 self-start py-2.5 text-sm" onClick={finishGame}>
+          <button type="button" className="btn btn-danger mt-4 min-h-11 self-start py-2.5 text-sm" onClick={() => setConfirmEnd(true)}>
             <Icon name="flag" className="size-4" /> Spielabend beenden
           </button>
         </div>
@@ -464,7 +487,14 @@ function CategoryStep({
               'Tippe eine Frage an, um sie auszuwählen'
             )}
           </p>
-          <HoldButton className="btn btn-primary w-full py-3 text-lg" disabled={!chosen} onConfirm={() => chosen && onStart(chosen)}>
+          <HoldButton
+            className="btn btn-primary w-full py-3 text-lg"
+            disabled={!chosen}
+            confirmTitle="Frage am TV stellen?"
+            confirmLabel="Frage stellen"
+            confirmBody={chosen ? `„${chosen.title}“ erscheint sofort am TV.` : undefined}
+            onConfirm={() => chosen && onStart(chosen)}
+          >
             <Icon name="tv" weight="duotone" className="size-6" /> Frage am TV stellen
           </HoldButton>
         </ActionBar>

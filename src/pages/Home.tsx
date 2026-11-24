@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
 import { useAuth } from '../lib/auth'
-import { fetchQuestions } from '../lib/data'
+import { fetchOpenGame, fetchQuestions } from '../lib/data'
+import type { Game } from '../lib/types'
 import { supabase } from '../lib/supabase'
 
 const rows: { to: string; icon: IconName; title: string; text: string }[] = [
@@ -15,11 +16,13 @@ const rows: { to: string; icon: IconName; title: string; text: string }[] = [
 export function Home() {
   const { session } = useAuth()
   const [stats, setStats] = useState<{ ready: number; total: number } | null>(null)
+  const [openGame, setOpenGame] = useState<Game | null>(null)
 
   useEffect(() => {
     fetchQuestions()
       .then((qs) => setStats({ total: qs.length, ready: qs.filter((q) => q.status === 'ready' && !q.played_at).length }))
       .catch(() => {})
+    fetchOpenGame().then(setOpenGame).catch(() => {})
   }, [])
 
   return (
@@ -39,6 +42,24 @@ export function Home() {
       </header>
 
       <main className="animate-enter flex flex-col gap-6 [animation-delay:120ms]">
+        {openGame && (
+          <Link
+            to={`/leitung/${openGame.id}`}
+            className="card flex items-center gap-4 border-gold-400/50! px-5 py-4"
+          >
+            <span className="relative flex size-3 shrink-0">
+              <span className="animate-pulse-dot absolute inset-0 rounded-full bg-ok" />
+              <span className="relative size-3 rounded-full bg-ok" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-gold-200">Spielabend läuft</span>
+              <span className="block truncate font-display text-xl font-extrabold text-cream-50">{openGame.name}</span>
+            </span>
+            <span className="flex items-center gap-1 text-sm font-semibold text-gold-200">
+              Fortsetzen <Icon name="next" className="size-4" />
+            </span>
+          </Link>
+        )}
         <Link
           to="/erfassen"
           className="group relative flex items-center gap-4 overflow-hidden rounded-2xl px-5 py-5 text-felt-950 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.9)] transition-transform active:scale-[0.99]"
@@ -52,7 +73,7 @@ export function Home() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-display text-2xl leading-tight font-extrabold">Frage erfassen</span>
-            <span className="block text-sm text-felt-900/80">Frage, zwei Hinweise, Lösung</span>
+            <span className="block text-sm font-medium text-felt-950">Frage, zwei Hinweise, Lösung</span>
           </span>
           <Icon name="plus" weight="bold" className="size-6 transition-transform group-hover:rotate-90" />
         </Link>

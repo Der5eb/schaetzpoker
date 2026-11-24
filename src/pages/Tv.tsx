@@ -69,7 +69,7 @@ export function Tv() {
     >
       <TableBackdrop />
 
-      {display && display.phase !== 'ended' && <TopBar d={display} />}
+      {display && display.phase !== 'ended' && display.phase !== 'lobby' && <TopBar d={display} />}
 
       <main key={sceneKey} className="animate-focus-in relative flex min-h-0 flex-1 flex-col px-[5vw] pt-[2vh] pb-[6vh]">
         {!display && <Waiting code={code} pairUrl={pairUrl} />}
@@ -77,7 +77,7 @@ export function Tv() {
         {display?.phase === 'category' && <CategoryPick d={display} />}
         {display?.phase === 'round' && <Round d={display} videos={videos} />}
         {display?.phase === 'blinds' && <BlindsUp d={display} />}
-        {display?.phase === 'ended' && <Ended />}
+        {display?.phase === 'ended' && <Ended d={display} />}
       </main>
 
       {/* Abdunklung hinter einem vergrößerten Bild oder Video */}
@@ -152,12 +152,17 @@ function useFitZoom(container: RefObject<HTMLElement | null>, content: RefObject
       }
     }
     fit()
+    // Neu messen, wenn sich Platz ODER Inhalt ändern (z. B. Schrift-Animation, nachladende Bilder).
+    // Jede Messung endet beim selben Zoom – der Observer meldet sich danach nicht erneut.
     const ro = new ResizeObserver(fit)
     ro.observe(box)
+    ro.observe(inner)
     inner.addEventListener('load', fit, true)
+    inner.addEventListener('transitionend', fit, true)
     return () => {
       ro.disconnect()
       inner.removeEventListener('load', fit, true)
+      inner.removeEventListener('transitionend', fit, true)
     }
   }, [container, content, key])
 }
@@ -275,6 +280,14 @@ function TableBackdrop() {
 }
 
 function TopBar({ d }: { d: DisplayState }) {
+  // In der Blind-Szene zuerst die alten Blinds, nach der Enthüllung die neuen
+  const [revealed, setRevealed] = useState(d.phase !== 'blinds')
+  useEffect(() => {
+    if (d.phase !== 'blinds') return setRevealed(true)
+    setRevealed(false)
+    const t = window.setTimeout(() => setRevealed(true), 1900)
+    return () => window.clearTimeout(t)
+  }, [d.phase])
   const increaseText =
     d.untilIncrease === 1 ? 'letzte Frage vor der Erhöhung' : `Erhöhung nach Frage ${d.questionNumber + d.untilIncrease - 1}`
   return (
@@ -284,7 +297,7 @@ function TopBar({ d }: { d: DisplayState }) {
           <span className="flex items-baseline gap-[0.4em]">
             Frage <span className="font-display text-[1.6em] leading-none font-extrabold text-cream-50 tabular-nums">{d.questionNumber}</span>
           </span>
-        ) : (
+        ) : d.phase === 'lobby' ? null : (
           <span className="font-display text-[1.2em] font-extrabold text-cream-100">{d.gameName}</span>
         )}
       </div>
@@ -293,7 +306,7 @@ function TopBar({ d }: { d: DisplayState }) {
           <ChipMark className="size-[1.7em] drop-shadow-[0_0.3vh_0.6vh_rgba(0,0,0,0.6)]" />
           <span className="font-display text-[1.5em] leading-none font-extrabold text-cream-50 tabular-nums">
             {/* In der Blind-Szene erst die alten Blinds zeigen – die neuen enthüllt die Szene selbst */}
-            {formatBlinds(d.phase === 'blinds' && d.previousBlinds ? d.previousBlinds : d.blinds)}
+            {formatBlinds(!revealed && d.previousBlinds ? d.previousBlinds : d.blinds)}
           </span>
         </span>
         {d.phase !== 'blinds' && <span className="text-[0.85em] font-medium text-cream-200">{increaseText}</span>}
@@ -342,15 +355,45 @@ function Waiting({ code, pairUrl }: { code: string; pairUrl: string }) {
   )
 }
 
+const RULES: { icon: IconName; title: string; text: string; red?: boolean }[] = [
+  { icon: 'club', title: 'Geheim schätzen', text: 'Jeder schreibt seine Zahl verdeckt auf.' },
+  { icon: 'diamond', title: 'Setzen wie beim Poker', text: 'Nach der Frage, nach jedem Hinweis und nach der Lösung.', red: true },
+  { icon: 'spade', title: 'Am nächsten dran gewinnt', text: 'Wer noch im Spiel ist, deckt beim Showdown auf.' },
+]
+
 function Lobby({ d }: { d: DisplayState }) {
   return (
-    <Center className="gap-[4vh]">
-      <ChipMark className="size-[12vh] drop-shadow-[0_1.4vh_2.4vh_rgba(0,0,0,0.6)]" />
-      <h1 className="max-w-[80vw] font-display text-[clamp(3rem,7vw,8.5rem)] leading-[1.02] font-extrabold text-cream-50">{d.gameName}</h1>
-      <p className="flex items-center gap-[1vw] text-[clamp(1.2rem,2.2vw,2.8rem)] text-cream-300">
-        Start-Blinds
-        <span className="font-display font-extrabold text-gold-200 tabular-nums">{formatBlinds(d.blinds)}</span>
-      </p>
+    <Center className="gap-[5vh]">
+      <div className="flex flex-col items-center gap-[1.5vh]">
+        <h1 className="max-w-[80vw] font-display text-[clamp(2.6rem,5.8vw,7.5rem)] leading-[1.02] font-extrabold text-cream-50">{d.gameName}</h1>
+        <p className="flex items-center gap-[0.8vw] text-[clamp(1.1rem,2vw,2.6rem)] text-cream-200">
+          <ChipMark className="size-[1.3em]" />
+          Start-Blinds <span className="font-display font-extrabold text-gold-200 tabular-nums">{formatBlinds(d.blinds)}</span>
+        </p>
+      </div>
+      <ol className="flex items-stretch justify-center gap-[2vw]" aria-label="So wird gespielt">
+        {RULES.map((r, i) => (
+          <li
+            key={r.title}
+            className="playing-card animate-deal flex w-[min(24vw,30rem)] flex-col gap-[1.2vh] px-[1.8vw] py-[2.6vh] text-left"
+            style={
+              {
+                '--deal-x': `${(1 - i) * 20}vw`,
+                '--deal-r': `${-14 + i * 8}deg`,
+                '--rest-r': `${(i - 1) * 1.5}deg`,
+                animationDelay: `${300 + i * 160}ms`,
+              } as CSSProperties
+            }
+          >
+            <span className="flex items-center gap-[0.6vw]">
+              <Icon name={r.icon} weight="fill" className={`size-[clamp(1.2rem,2vw,2.6rem)] ${r.red ? 'text-chip-red' : 'text-ink'}`} />
+              <span className="font-display text-[clamp(1rem,1.5vw,2rem)] font-black text-ink-soft tabular-nums">{i + 1}</span>
+            </span>
+            <span className="font-display text-[clamp(1.2rem,1.9vw,2.5rem)] leading-tight font-extrabold text-ink">{r.title}</span>
+            <span className="text-[clamp(0.95rem,1.25vw,1.65rem)] leading-snug text-ink-soft">{r.text}</span>
+          </li>
+        ))}
+      </ol>
     </Center>
   )
 }
@@ -438,8 +481,8 @@ function CategoryPick({ d }: { d: DisplayState }) {
                     } as CSSProperties
                   }
                 >
-                  <CardIndex color={c.color} count={c.count} className="absolute top-[6%] left-[8%]" />
-                  <CardIndex color={c.color} count={c.count} className="absolute right-[8%] bottom-[6%] rotate-180" />
+                  <CardIndex color={c.color} letter={c.name.replace(/^TEST\s+/i, '').charAt(0).toUpperCase()} className="absolute top-[6%] left-[8%]" />
+                  <CardIndex color={c.color} letter={c.name.replace(/^TEST\s+/i, '').charAt(0).toUpperCase()} className="absolute right-[8%] bottom-[6%] rotate-180" />
                   <span lang="de" className="w-full text-center font-display text-[16cqi] leading-[1.1] font-extrabold text-balance break-words hyphens-auto text-ink">
                     {c.name}
                   </span>
@@ -456,11 +499,11 @@ function CategoryPick({ d }: { d: DisplayState }) {
   )
 }
 
-/** Eckindex wie auf einer Spielkarte: Anzahl + Kategoriefarbe */
-function CardIndex({ color, count, className = '' }: { color: string; count: number; className?: string }) {
+/** Eckindex wie auf einer Spielkarte: Anfangsbuchstabe + Kategoriefarbe */
+function CardIndex({ color, letter, className = '' }: { color: string; letter: string; className?: string }) {
   return (
     <span className={`flex flex-col items-center gap-[0.3vh] leading-none ${className}`}>
-      <span className="font-display text-[11cqi] font-black text-ink tabular-nums">{count}</span>
+      <span className="font-display text-[11cqi] font-black text-ink">{letter}</span>
       <span className="size-[7cqi] rotate-45 rounded-[0.15vw] ring-1 ring-black/15" style={{ background: color }} />
     </span>
   )
@@ -617,12 +660,43 @@ function BlindsUp({ d }: { d: DisplayState }) {
   )
 }
 
-function Ended() {
+function Ended({ d }: { d: DisplayState }) {
+  const played = Math.max(0, d.questionNumber - 1)
+  const minutes = Math.max(1, Math.round((Date.now() - new Date(d.startedAt).getTime()) / 60000))
+  const duration = minutes >= 60 ? `${Math.floor(minutes / 60)} Std. ${minutes % 60} Min.` : `${minutes} Min.`
+  const stats = [
+    { value: String(played), label: played === 1 ? 'Frage gespielt' : 'Fragen gespielt' },
+    { value: formatBlinds(d.blinds), label: 'Blinds zuletzt' },
+    { value: duration, label: 'am Tisch' },
+  ]
   return (
-    <Center className="gap-[4vh]">
-      <ChipMark className="size-[12vh]" />
-      <Wordmark className="text-[clamp(3rem,7vw,8.5rem)]" />
-      <p className="font-display text-[clamp(1.4rem,3vw,3.8rem)] text-cream-200 italic">Danke fürs Spielen!</p>
+    <Center className="gap-[5vh]">
+      <div className="flex flex-col items-center gap-[2vh]">
+        <ChipMark className="size-[11vh] drop-shadow-[0_1.4vh_2.4vh_rgba(0,0,0,0.6)]" />
+        <h1 className="font-display text-[clamp(2.6rem,6vw,7.5rem)] leading-none font-extrabold text-cream-50">
+          Danke fürs <em className="font-normal text-gold-200 italic">Spielen!</em>
+        </h1>
+        <p className="text-[clamp(1rem,1.7vw,2.2rem)] text-cream-200">{d.gameName} in Zahlen</p>
+      </div>
+      <ul className="flex items-stretch justify-center gap-[2vw]">
+        {stats.map((st, i) => (
+          <li
+            key={st.label}
+            className="playing-card animate-deal flex min-w-[min(20vw,24rem)] flex-col items-center gap-[0.8vh] px-[2vw] py-[3vh]"
+            style={
+              {
+                '--deal-x': `${(1 - i) * 20}vw`,
+                '--deal-r': `${-12 + i * 8}deg`,
+                '--rest-r': `${(i - 1) * 1.2}deg`,
+                animationDelay: `${400 + i * 180}ms`,
+              } as CSSProperties
+            }
+          >
+            <span className="font-display text-[clamp(1.8rem,3.6vw,4.8rem)] leading-none font-black text-ink tabular-nums">{st.value}</span>
+            <span className="text-[clamp(0.95rem,1.3vw,1.7rem)] text-ink-soft">{st.label}</span>
+          </li>
+        ))}
+      </ul>
     </Center>
   )
 }

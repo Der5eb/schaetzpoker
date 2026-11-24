@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { ActionBar, SectionTitle, Shell } from '../components/Shell'
 import { defaultLevels } from '../game/blinds'
@@ -24,6 +25,7 @@ export function GameSetup() {
   const [perLevel, setPerLevel] = useState(3)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<null | 'new' | 'finish'>(null)
 
   useEffect(() => {
     fetchOpenGame().then(setOpenGame).catch(() => {})
@@ -44,7 +46,6 @@ export function GameSetup() {
   }
 
   async function finish(game: Game) {
-    if (!window.confirm(`„${game.name}“ beenden?`)) return
     await updateGame(game.id, { finished_at: new Date().toISOString(), state: { ...game.state, phase: 'ended' } })
     setOpenGame(null)
   }
@@ -83,18 +84,13 @@ export function GameSetup() {
           <p className="text-sm text-cream-400">
             {openGame.state.completed ?? 0} {(openGame.state.completed ?? 0) === 1 ? 'Frage' : 'Fragen'} gespielt
           </p>
-          <div className="mt-4 flex gap-2">
-            <button type="button" className="btn btn-primary flex-1" onClick={() => resume(openGame)}>
-              Fortsetzen <Icon name="arrow" weight="bold" className="size-4" />
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => finish(openGame)}>
-              Beenden
-            </button>
-          </div>
+          <button type="button" className="btn btn-ghost mt-4 min-h-11 py-2 text-sm" onClick={() => setConfirm('finish')}>
+            <Icon name="flag" className="size-4" /> Abend beenden
+          </button>
         </div>
       )}
 
-      <div className="flex flex-col gap-10 pb-32">
+      <div className={`flex flex-col gap-10 ${openGame ? "pb-48" : "pb-32"}`}>
         <section className="flex flex-col gap-3">
           <SectionTitle>TV verbinden</SectionTitle>
           <p className="text-sm leading-relaxed text-cream-300">
@@ -153,11 +149,48 @@ export function GameSetup() {
 
       <ActionBar>
         {error && <p className="text-sm text-danger">{error}</p>}
-        <button type="button" className="btn btn-primary w-full py-3.5 text-base" disabled={busy} onClick={start}>
-          <Icon name="chip" weight="duotone" className="size-5" />
-          {openGame ? 'Neuen Spielabend starten' : 'Spielabend starten'}
-        </button>
+        {openGame ? (
+          <>
+            <button type="button" className="btn btn-primary w-full py-3.5 text-base" onClick={() => resume(openGame)}>
+              „{openGame.name}“ fortsetzen <Icon name="arrow" weight="bold" className="size-5" />
+            </button>
+            <button type="button" className="btn btn-ghost min-h-11 w-full text-sm" disabled={busy} onClick={() => setConfirm('new')}>
+              Stattdessen neuen Abend starten
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-primary w-full py-3.5 text-base" disabled={busy} onClick={start}>
+            <Icon name="chip" weight="duotone" className="size-5" /> Spielabend starten
+          </button>
+        )}
       </ActionBar>
+
+      <ConfirmDialog
+        open={confirm === 'new'}
+        danger
+        title="Laufenden Abend ersetzen?"
+        confirmLabel="Beenden und neu starten"
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          setConfirm(null)
+          start()
+        }}
+      >
+        „{openGame?.name}“ läuft noch ({openGame?.state.completed ?? 0} Fragen gespielt). Ein neuer Abend beendet ihn.
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirm === 'finish'}
+        danger
+        title="Spielabend beenden?"
+        confirmLabel="Abend beenden"
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          setConfirm(null)
+          if (openGame) finish(openGame)
+        }}
+      >
+        „{openGame?.name}“ wird beendet. Gespielte Fragen bleiben als gespielt markiert.
+      </ConfirmDialog>
     </Shell>
   )
 }
