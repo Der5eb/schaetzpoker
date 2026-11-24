@@ -1,6 +1,7 @@
 import { deleteMediaFiles } from './media'
 import { supabase } from './supabase'
-import type { Category, Media, Question } from './types'
+import { initialState } from '../game/types'
+import type { Category, Game, Media, Question } from './types'
 
 function db() {
   if (!supabase) throw new Error('Supabase nicht konfiguriert')
@@ -137,6 +138,55 @@ export function missingForReady(q: QuestionInput): string[] {
   if (!q.hint2.trim() && q.hint2_media.length === 0) missing.push('Hinweis 2')
   if (q.answer == null) missing.push('Lösung als Zahl')
   return missing
+}
+
+// ---------------------------------------------------------------------------
+// Spielabende
+// ---------------------------------------------------------------------------
+
+export async function createGame(input: Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level'>): Promise<Game> {
+  const { data, error } = await db()
+    .from('games')
+    .insert({ ...input, state: initialState })
+    .select()
+    .single()
+  if (error) throw error
+  return data as Game
+}
+
+export async function fetchGame(id: string): Promise<Game> {
+  const { data, error } = await db().from('games').select('*').eq('id', id).single()
+  if (error) throw error
+  return { ...(data as Game), state: { ...initialState, ...(data as Game).state } }
+}
+
+/** Zuletzt gestarteter, noch nicht beendeter Spielabend. */
+export async function fetchOpenGame(): Promise<Game | null> {
+  const { data, error } = await db()
+    .from('games')
+    .select('*')
+    .is('finished_at', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  return (data?.[0] as Game | undefined) ?? null
+}
+
+export async function updateGame(
+  id: string,
+  patch: Partial<Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level' | 'state' | 'finished_at'>>,
+): Promise<void> {
+  const { error } = await db().from('games').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+/** Frage als gespielt markieren und dem Abend zuordnen. */
+export async function markPlayed(gameId: string, questionId: string, position: number): Promise<string> {
+  const playedAt = new Date().toISOString()
+  const { error } = await db().from('questions').update({ played_at: playedAt }).eq('id', questionId)
+  if (error) throw error
+  await db().from('game_questions').upsert({ game_id: gameId, question_id: questionId, position, played_at: playedAt })
+  return playedAt
 }
 
 // ---------------------------------------------------------------------------

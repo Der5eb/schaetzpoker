@@ -1,4 +1,5 @@
 // Spiegelt supabase/schema.sql wider.
+import type { GameState } from '../game/types'
 
 export type Media =
   | { type: 'image'; path: string; caption?: string }
@@ -52,7 +53,7 @@ export interface Game {
   blind_levels: BlindLevel[]
   questions_per_level: number
   current_level: number
-  state: Record<string, unknown>
+  state: GameState
   started_at: string
   finished_at: string | null
 }

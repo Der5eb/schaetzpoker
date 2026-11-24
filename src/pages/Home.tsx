@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabase'
 const entries = [
   { to: '/erfassen', title: 'Frage erfassen', text: 'Neue Schätzfrage mit Hinweisen und Lösung' },
   { to: '/bibliothek', title: 'Bibliothek', text: 'Fragen und Kategorien verwalten' },
-  { to: '/spiel', title: 'Spielabend', text: 'Abend starten, Blinds festlegen, Präsentation koppeln' },
+  { to: '/spiel', title: 'Spielabend', text: 'Abend starten, Blinds festlegen, TV koppeln' },
+  { to: '/tv', title: 'TV-Ansicht', text: 'Auf dem Laptop am Fernseher öffnen' },
 ]
 
 export function Home() {
