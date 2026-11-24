@@ -26,3 +26,6 @@ dist-ssr
 # Zugangsdaten
 .env
 .env.local
+
+# Supabase CLI
+supabase/.temp/
