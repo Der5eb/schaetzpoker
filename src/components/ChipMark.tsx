@@ -22,8 +22,19 @@ const SEGMENTS = [
 const QUESTION =
   'M353 447L353 430A144 118 0 0 1 641 430C641 470 618 488 588 508C566 523 550 533 550 548L550 559L455 559L455 538C455 510 474 492 500 472C516 460 526 448 526 430A35 42 0 0 0 455 430L455 447Z'
 const DOT = 'M449 594H556V694H449Z'
+/** Plus in gleicher Strichstärke wie das Fragezeichen */
+const PLUS = 'M450 345H550V450H655V550H550V655H450V550H345V450H450Z'
 
-export function ChipMark({ className = 'size-8', style }: { className?: string; style?: CSSProperties }) {
+export function ChipMark({
+  className = 'size-8',
+  style,
+  symbol = 'question',
+}: {
+  className?: string
+  style?: CSSProperties
+  /** Motiv in der Mitte: Fragezeichen (Logo) oder Plus (Knopf „Neue Frage“) */
+  symbol?: 'question' | 'plus'
+}) {
   const id = useId().replace(/:/g, '')
   return (
     <svg viewBox="140 140 720 720" className={className} style={style} aria-hidden="true">
@@ -53,8 +64,14 @@ export function ChipMark({ className = 'size-8', style }: { className?: string; 
       <circle cx="500" cy="500" r="240" fill="#d1a446" />
       <circle cx="500" cy="500" r="233" fill="#0f2b20" />
       <g filter={`url(#${id})`} fill="#e6c470">
-        <path d={QUESTION} />
-        <path d={DOT} />
+        {symbol === 'plus' ? (
+          <path d={PLUS} />
+        ) : (
+          <>
+            <path d={QUESTION} />
+            <path d={DOT} />
+          </>
+        )}
       </g>
     </svg>
   )
