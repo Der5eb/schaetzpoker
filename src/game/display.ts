@@ -52,6 +52,7 @@ export function buildDisplay(
         : null,
     reveal,
     decided: state.decided,
+    focus: q && state.focus && isZoomable(state.focus, reveal) ? state.focus : null,
   }
 }
 
@@ -60,4 +61,16 @@ export const mediaKey = {
   question: (i: number) => `q-${i}`,
   hint: (h: number, i: number) => `h${h}-${i}`,
   answer: (i: number) => `a-${i}`,
+}
+
+/**
+ * Ob ein Medium gerade am TV zu sehen ist und damit vergrößert werden darf.
+ * Bis zur Lösung: Frage + aufgedeckte Hinweise. Ab der Lösung: nur die Erklärung.
+ */
+export function isZoomable(key: string, reveal: number): boolean {
+  if (key.startsWith('q-')) return reveal < 3
+  if (key.startsWith('h1-')) return reveal >= 1 && reveal < 3
+  if (key.startsWith('h2-')) return reveal === 2
+  if (key.startsWith('a-')) return reveal >= 3
+  return false
 }

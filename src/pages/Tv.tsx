@@ -46,6 +46,7 @@ export function Tv() {
   )
 
   const { connected } = useTvRoom(code, setDisplay, onVideo)
+  const focus = display?.phase === 'round' ? display.focus : null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -58,6 +59,8 @@ export function Tv() {
   const pairUrl = `${location.origin}${location.pathname}#/spiel?raum=${code}`
   // Bei jedem Phasen- oder Fragenwechsel wird die Bühne neu "scharfgestellt"
   const sceneKey = display ? `${display.phase}-${display.question?.text ?? ''}-${display.questionNumber}` : 'waiting'
+  useMediaZoom(focus, sceneKey)
+  const focusCaption = display && focus ? findMedia(display, focus)?.caption : undefined
 
   return (
     <div
@@ -77,6 +80,22 @@ export function Tv() {
         {display?.phase === 'ended' && <Ended />}
       </main>
 
+      {/* Abdunklung hinter einem vergrößerten Bild oder Video */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-0 z-40 bg-felt-950/80 backdrop-blur-md transition-opacity duration-500 ${
+          focus ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      {focusCaption && (
+        <p
+          key={focus}
+          className="animate-enter fixed inset-x-0 bottom-[3.5vh] z-50 text-center text-[clamp(1rem,1.6vw,2.2rem)] text-cream-100 [animation-delay:400ms]"
+        >
+          {focusCaption}
+        </p>
+      )}
+
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-[2vw] pb-[1.4vh] text-[clamp(0.7rem,0.85vw,1rem)] text-cream-400/80">
         <span className="flex items-center gap-2">
           <span className={`size-[0.55em] rounded-full ${connected ? 'bg-ok' : 'animate-pulse-dot bg-danger'}`} />
@@ -92,6 +111,89 @@ export function Tv() {
       </footer>
     </div>
   )
+}
+
+/** Medium zu einem Schlüssel aus der aktuellen Anzeige */
+function findMedia(d: DisplayState, key: string) {
+  const [part, index] = key.split('-')
+  const i = Number(index)
+  if (part === 'q') return d.question?.media[i]
+  if (part === 'h1') return d.hints[0]?.media[i]
+  if (part === 'h2') return d.hints[1]?.media[i]
+  if (part === 'a') return d.answer?.explanation.media[i]
+  return undefined
+}
+
+/**
+ * Vergrößert das Medium mit dem Schlüssel `focus` an Ort und Stelle:
+ * Das Original-Element (Bild oder laufendes Video) fliegt in die Bildmitte,
+ * statt dass eine Kopie geöffnet wird – Videos laufen so ohne Neuladen weiter.
+ */
+function useMediaZoom(focus: string | null, sceneKey: string) {
+  useEffect(() => {
+    if (!focus) return
+    const figure = document.querySelector<HTMLElement>(`[data-media-key="${CSS.escape(focus)}"]`)
+    const media = figure?.firstElementChild as HTMLElement | null
+    if (!figure || !media) return
+    let cancelled = false
+    let undo: (() => void) | undefined
+
+    // Erst zoomen, wenn die Szene fertig eingeblendet ist (sonst stimmen Position und Ebenen nicht)
+    const scene = figure.closest('main') ?? document.body
+    const running = scene
+      .getAnimations({ subtree: true })
+      .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+      .map((a) => a.finished.catch(() => undefined))
+    Promise.all(running).then(() => {
+      if (!cancelled) undo = zoom(figure, media)
+    })
+
+    return () => {
+      cancelled = true
+      undo?.()
+    }
+  }, [focus, sceneKey])
+}
+
+/** Fliegt das Medium in die Bildmitte; gibt die Rückgängig-Funktion zurück. */
+function zoom(figure: HTMLElement, media: HTMLElement): () => void {
+  const layer = figure.closest<HTMLElement>('[data-zoom-layer]')
+  // Karte geradestellen: ohne eigene Drehung bildet sie keine eigene Ebene,
+  // so liegt nur das Medium über der Abdunklung – nicht die ganze Karte
+  if (layer) {
+    layer.style.transition = 'none'
+    layer.style.transform = 'none'
+  }
+  figure.style.position = 'relative'
+  figure.style.zIndex = '50'
+
+  const r = media.getBoundingClientRect()
+  const scale = Math.min((window.innerWidth * 0.86) / r.width, (window.innerHeight * 0.78) / r.height)
+  const dx = window.innerWidth / 2 - (r.left + r.width / 2)
+  const dy = window.innerHeight / 2 - (r.top + r.height / 2) - window.innerHeight * 0.02
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  media.style.transition = reduce ? 'none' : 'transform 0.75s var(--ease-out-expo), box-shadow 0.75s'
+  media.style.transformOrigin = 'center'
+  media.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`
+  media.style.boxShadow = '0 3vh 8vh -2vh rgb(0 0 0 / 0.8)'
+
+  return () => {
+    media.style.transition = reduce ? 'none' : 'transform 0.45s var(--ease-out-quart), box-shadow 0.45s'
+    media.style.transform = ''
+    media.style.boxShadow = ''
+    window.setTimeout(
+      () => {
+        figure.style.zIndex = ''
+        figure.style.position = ''
+        if (layer) {
+          layer.style.transition = 'transform 0.4s var(--ease-out-quart)'
+          layer.style.transform = ''
+        }
+      },
+      reduce ? 0 : 450,
+    )
+  }
 }
 
 function toggleFullscreen() {
@@ -307,6 +409,7 @@ function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistr
           {d.hints.map((h, i) => (
             <section
               key={i}
+              data-zoom-layer
               className="playing-card animate-deal flex w-[min(40vw,46rem)] flex-col gap-[1.6vh] px-[2.4vw] pt-[2.8vh] pb-[3vh]"
               style={
                 {
@@ -325,7 +428,7 @@ function QuestionAndHints({ d, videos }: { d: DisplayState; videos: VideoRegistr
                 Hinweis {i + 1}
               </span>
               {h.text && <p className="font-display text-[clamp(1.2rem,2.2vw,3rem)] leading-snug font-bold text-ink">{h.text}</p>}
-              <MediaGallery media={h.media} keyFor={(j) => mediaKey.hint(i + 1, j)} registry={videos} size="sm" />
+              <MediaGallery media={h.media} keyFor={(j) => mediaKey.hint(i + 1, j)} registry={videos} size={h.media.length > 1 ? 'xs' : 'sm'} />
             </section>
           ))}
         </div>

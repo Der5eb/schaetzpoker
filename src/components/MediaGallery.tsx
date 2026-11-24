@@ -1,7 +1,6 @@
-import { mediaUrl } from '../lib/media'
 import type { VideoRegistry } from '../game/video'
+import { mediaUrl } from '../lib/media'
 import type { Media } from '../lib/types'
-
 
 interface Props {
   media: Media[]
@@ -10,18 +9,18 @@ interface Props {
   registry: VideoRegistry
   className?: string
   /** Höhe von Bildern/Videos; in Hinweis-Karten kleiner */
-  size?: 'lg' | 'sm'
+  size?: 'lg' | 'sm' | 'xs'
 }
 
 /** Bilder und YouTube-Ausschnitte auf dem TV. */
 export function MediaGallery({ media, keyFor, registry, className = '', size = 'lg' }: Props) {
   if (media.length === 0) return null
-  const h = size === 'lg' ? 'max-h-[38vh]' : 'max-h-[26vh]'
-  const vh = size === 'lg' ? 'h-[38vh]' : 'h-[26vh]'
+  const h = { lg: 'max-h-[38vh]', sm: 'max-h-[26vh]', xs: 'max-h-[16vh]' }[size]
+  const vh = { lg: 'h-[38vh]', sm: 'h-[26vh]', xs: 'h-[16vh]' }[size]
   return (
-    <div className={`flex min-h-0 flex-wrap items-start justify-center gap-[2vw] ${className}`}>
+    <div className={`flex min-h-0 flex-wrap items-start justify-center ${size === 'xs' ? 'gap-[1.2vw]' : 'gap-[2vw]'} ${className}`}>
       {media.map((m, i) => (
-        <figure key={keyFor(i)} className="flex min-h-0 max-w-full flex-col items-center gap-[0.6vw]">
+        <figure key={keyFor(i)} data-media-key={keyFor(i)} className="flex min-h-0 max-w-full flex-col items-center gap-[0.6vw]">
           {m.type === 'image' ? (
             <img
               src={mediaUrl(m.path)}

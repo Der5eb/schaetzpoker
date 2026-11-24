@@ -187,9 +187,6 @@
     opacity: 1;
     filter: blur(0);
   }
-  to {
-    transform: rotate(var(--rest-r, 0deg));
-  }
 }
 
 /* Karte wird umgedreht (River) */
@@ -232,23 +229,26 @@
 }
 
 @utility animate-enter {
-  animation: enter 0.38s var(--ease-out-expo) both;
+  animation: enter 0.38s var(--ease-out-expo) backwards;
 }
 
 @utility animate-focus-in {
-  animation: focus-in 0.7s var(--ease-out-expo) both;
+  animation: focus-in 0.7s var(--ease-out-expo) backwards;
 }
 
 @utility animate-deal {
-  animation: deal 0.85s var(--ease-out-expo) both;
+  animation: deal 0.85s var(--ease-out-expo) backwards;
+  /* Ruhelage der Karte; die Animation endet ohne eigene Transformation,
+     damit vergrößerte Medien (TV-Zoom) über der Abdunklung liegen können */
+  transform: rotate(var(--rest-r, 0deg));
 }
 
 @utility animate-flip {
-  animation: flip 1.2s var(--ease-out-quart) 0.45s both;
+  animation: flip 1.2s var(--ease-out-quart) 0.45s backwards;
 }
 
 @utility animate-chip-drop {
-  animation: chip-drop 0.75s var(--ease-out-quart) both;
+  animation: chip-drop 0.75s var(--ease-out-quart) backwards;
 }
 
 @utility animate-pulse-dot {

@@ -6,7 +6,7 @@ import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
 import { ActionBar } from '../components/Shell'
 import { blindInfo, formatBlinds } from '../game/blinds'
-import { availableQuestions, buildDisplay, mediaKey } from '../game/display'
+import { availableQuestions, buildDisplay, isZoomable, mediaKey } from '../game/display'
 import { normalizeRoomCode, useGmRoom } from '../game/room'
 import type { GameState, VideoCommand } from '../game/types'
 import { fetchCategories, fetchGame, fetchQuestions, markPlayed, updateGame } from '../lib/data'
@@ -60,7 +60,13 @@ export function GameMaster() {
     }
   }
 
-  const setState = (patch: Partial<GameState>) => game && save({ state: { ...game.state, ...patch } })
+  // Wechselt die Ansicht (Aufdecken, neue Phase), wird ein vergrößertes Medium geschlossen
+  const setState = (patch: Partial<GameState>) => {
+    if (!game) return
+    const resetFocus = ('reveal' in patch || 'phase' in patch) && !('focus' in patch)
+    return save({ state: { ...game.state, ...patch, ...(resetFocus ? { focus: null } : {}) } })
+  }
+  const toggleFocus = (key: string) => setState({ focus: game?.state.focus === key ? null : key })
 
   if (error && !game) return <Frame><p className="text-danger">{error}</p></Frame>
   if (!game || !display) return <Frame><p className="text-cream-300">Lädt …</p></Frame>
@@ -166,12 +172,15 @@ export function GameMaster() {
           </div>
           <h2 className="font-display text-[1.75rem] leading-tight font-extrabold text-cream-50">{question.title}</h2>
 
-          <Block label="Frage" icon="cards" shown text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
-          <Block label="Hinweis 1" icon="club" shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
-          <Block label="Hinweis 2" icon="diamond" shown={s.reveal >= 2} text={question.hint2} media={question.hint2_media} keyFor={(i) => mediaKey.hint(2, i)} onVideo={sendVideo} />
+          <Block label="Frage" icon="cards" shown focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
+          <Block label="Hinweis 1" icon="club" focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
+          <Block label="Hinweis 2" icon="diamond" focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} shown={s.reveal >= 2} text={question.hint2} media={question.hint2_media} keyFor={(i) => mediaKey.hint(2, i)} onVideo={sendVideo} />
           <Block
             label="Lösung"
             icon="spade"
+            focus={s.focus}
+            canZoom={(k) => isZoomable(k, s.reveal)}
+            onZoom={toggleFocus}
             shown={s.reveal >= 3}
             highlight={formatAnswer(question)}
             text={question.explanation}
@@ -439,6 +448,9 @@ function Block({
   media,
   keyFor,
   onVideo,
+  focus,
+  canZoom,
+  onZoom,
 }: {
   label: string
   icon: IconName
@@ -448,6 +460,9 @@ function Block({
   media: Media[]
   keyFor: (i: number) => string
   onVideo: (c: VideoCommand) => void
+  focus: string | null
+  canZoom: (key: string) => boolean
+  onZoom: (key: string) => void
 }) {
   return (
     <section
@@ -468,30 +483,68 @@ function Block({
       {text && <p className={`leading-relaxed whitespace-pre-wrap ${shown ? 'text-cream-50' : 'text-cream-200'}`}>{text}</p>}
       {media.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
-          {media.map((m, i) => (
-            <li key={i} className="flex items-center gap-3 rounded-xl bg-felt-950/40 p-2">
-              <img
-                src={m.type === 'image' ? mediaUrl(m.path) : youTubeThumbnail(m.videoId)}
-                alt=""
-                className="size-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm text-cream-300">
-                {m.caption || (m.type === 'image' ? 'Bild' : 'YouTube')}
-                {m.type === 'youtube' && (m.start != null || m.end != null) && (
-                  <span className="block text-xs text-cream-400 tabular-nums">
-                    {formatTime(m.start ?? 0)}–{m.end != null ? formatTime(m.end) : 'Ende'}
+          {media.map((m, i) => {
+            const key = keyFor(i)
+            const zoomable = shown && canZoom(key)
+            const zoomed = zoomable && focus === key
+            const name = m.caption || (m.type === 'image' ? 'Bild' : 'YouTube')
+            return (
+              <li
+                key={i}
+                className={`flex items-center gap-2 rounded-xl p-2 transition-colors ${
+                  zoomed ? 'bg-gold-400/15 ring-1 ring-gold-300/70' : 'bg-felt-950/40'
+                }`}
+              >
+                <button
+                  type="button"
+                  disabled={!zoomable}
+                  onClick={() => onZoom(key)}
+                  aria-pressed={zoomed}
+                  aria-label={zoomed ? `${name}: Vergrößerung am TV schließen` : `${name} am TV vergrößern`}
+                  className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left disabled:cursor-default"
+                >
+                  <span className="relative shrink-0">
+                    <img
+                      src={m.type === 'image' ? mediaUrl(m.path) : youTubeThumbnail(m.videoId)}
+                      alt=""
+                      className="size-14 rounded-lg object-cover ring-1 ring-white/10"
+                    />
+                    {zoomable && (
+                      <span
+                        className={`absolute -right-1.5 -bottom-1.5 grid size-6 place-items-center rounded-full shadow-md transition-colors ${
+                          zoomed ? 'bg-gold-300 text-felt-950' : 'bg-felt-900 text-gold-200 ring-1 ring-gold-400/50 group-hover:bg-felt-700'
+                        }`}
+                      >
+                        <Icon name={zoomed ? 'shrink' : 'fullscreen'} weight="bold" className="size-3.5" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-cream-200">{name}</span>
+                    {zoomed ? (
+                      <span className="block text-xs font-semibold text-gold-200">Groß am TV · tippen zum Schließen</span>
+                    ) : zoomable ? (
+                      <span className="block text-xs text-cream-400">Tippen zum Vergrößern</span>
+                    ) : (
+                      m.type === 'youtube' &&
+                      (m.start != null || m.end != null) && (
+                        <span className="block text-xs text-cream-400 tabular-nums">
+                          {formatTime(m.start ?? 0)}–{m.end != null ? formatTime(m.end) : 'Ende'}
+                        </span>
+                      )
+                    )}
+                  </span>
+                </button>
+                {m.type === 'youtube' && shown && (
+                  <span className="flex shrink-0 gap-1">
+                    <VideoButton label="Abspielen" icon="play" onClick={() => onVideo({ key, cmd: 'play' })} />
+                    <VideoButton label="Pause" icon="pause" onClick={() => onVideo({ key, cmd: 'pause' })} />
+                    <VideoButton label="Von vorn" icon="restart" onClick={() => onVideo({ key, cmd: 'restart' })} />
                   </span>
                 )}
-              </span>
-              {m.type === 'youtube' && shown && (
-                <span className="flex shrink-0 gap-1">
-                  <VideoButton label="Abspielen" icon="play" onClick={() => onVideo({ key: keyFor(i), cmd: 'play' })} />
-                  <VideoButton label="Pause" icon="pause" onClick={() => onVideo({ key: keyFor(i), cmd: 'pause' })} />
-                  <VideoButton label="Von vorn" icon="restart" onClick={() => onVideo({ key: keyFor(i), cmd: 'restart' })} />
-                </span>
-              )}
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

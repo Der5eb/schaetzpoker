@@ -13,6 +13,8 @@ export interface GameState {
   reveal: number
   /** Nur noch ein Spieler übrig – ohne weitere Setzrunden aufgelöst */
   decided: boolean
+  /** Medium, das am TV groß gezeigt wird (Schlüssel aus mediaKey), sonst null */
+  focus: string | null
 }
 
 export const initialState: GameState = {
@@ -22,6 +24,7 @@ export const initialState: GameState = {
   questionId: null,
   reveal: 0,
   decided: false,
+  focus: null,
 }
 
 export interface DisplayBlock {
@@ -50,6 +53,8 @@ export interface DisplayState {
   answer: { display: string; explanation: DisplayBlock } | null
   reveal: number
   decided: boolean
+  /** Groß gezeigtes Medium (nur bereits aufgedeckte), sonst null */
+  focus: string | null
 }
 
 export type VideoCommand = { key: string; cmd: 'play' | 'pause' | 'restart' }
