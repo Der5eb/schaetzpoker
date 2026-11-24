@@ -171,7 +171,7 @@ function Waiting({ code, pairUrl }: { code: string; pairUrl: string }) {
   return (
     <Center className="gap-[5vh]">
       <div className="flex items-center gap-[1.5vw]">
-        <ChipMark className="size-[8vh] drop-shadow-[0_1vh_2vh_rgba(0,0,0,0.6)]" />
+        <ChipMark className="size-[12vh] drop-shadow-[0_1vh_2vh_rgba(0,0,0,0.6)]" />
         <Wordmark className="text-[clamp(3rem,7.5vw,9rem)]" />
       </div>
       <div className="flex items-center gap-[4vw]">

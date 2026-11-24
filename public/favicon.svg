@@ -1,7 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0d241b"/>
-  <circle cx="256" cy="256" r="170" fill="#d4a84b"/>
-  <circle cx="256" cy="256" r="170" fill="none" stroke="#0d241b" stroke-width="26" stroke-dasharray="44 45"/>
-  <circle cx="256" cy="256" r="118" fill="#123528"/>
-  <text x="256" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="150" font-weight="700" fill="#f3e9d2">?</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="140 140 720 720">
+  <defs>
+    <filter id="jq" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feFlood flood-color="#f7e9c8" result="lt"/>
+      <feComposite in="lt" in2="SourceAlpha" operator="out" result="outside"/>
+      <feGaussianBlur in="outside" stdDeviation="13" result="blurOut"/>
+      <feComposite in="blurOut" in2="SourceAlpha" operator="in" result="glow"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="13" result="sb"/>
+      <feFlood flood-color="#04100a" flood-opacity="0.9"/>
+      <feComposite in2="sb" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/><feMergeNode in="glow"/><feMergeNode in="glow"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="500" cy="500" r="356" fill="#d1a446"/>
+  <path fill="#8a6420" d="M329.0 203.8A342 342 0 0 1 500.0 158.0L500.0 238.0A262 262 0 0 0 369.0 273.1Z"/><path fill="#fbf7ec" d="M500.0 158.0A342 342 0 0 1 671.0 203.8L631.0 273.1A262 262 0 0 0 500.0 238.0Z"/><path fill="#8a6420" d="M671.0 203.8A342 342 0 0 1 796.2 329.0L726.9 369.0A262 262 0 0 0 631.0 273.1Z"/><path fill="#fbf7ec" d="M796.2 329.0A342 342 0 0 1 842.0 500.0L762.0 500.0A262 262 0 0 0 726.9 369.0Z"/><path fill="#8a6420" d="M842.0 500.0A342 342 0 0 1 796.2 671.0L726.9 631.0A262 262 0 0 0 762.0 500.0Z"/><path fill="#fbf7ec" d="M796.2 671.0A342 342 0 0 1 671.0 796.2L631.0 726.9A262 262 0 0 0 726.9 631.0Z"/><path fill="#8a6420" d="M671.0 796.2A342 342 0 0 1 500.0 842.0L500.0 762.0A262 262 0 0 0 631.0 726.9Z"/><path fill="#fbf7ec" d="M500.0 842.0A342 342 0 0 1 329.0 796.2L369.0 726.9A262 262 0 0 0 500.0 762.0Z"/><path fill="#8a6420" d="M329.0 796.2A342 342 0 0 1 203.8 671.0L273.1 631.0A262 262 0 0 0 369.0 726.9Z"/><path fill="#fbf7ec" d="M203.8 671.0A342 342 0 0 1 158.0 500.0L238.0 500.0A262 262 0 0 0 273.1 631.0Z"/><path fill="#8a6420" d="M158.0 500.0A342 342 0 0 1 203.8 329.0L273.1 369.0A262 262 0 0 0 238.0 500.0Z"/><path fill="#fbf7ec" d="M203.8 329.0A342 342 0 0 1 329.0 203.8L369.0 273.1A262 262 0 0 0 273.1 369.0Z"/>
+  <circle cx="500" cy="500" r="261" fill="#d1a446"/>
+  <circle cx="500" cy="500" r="253" fill="#0f2b20"/>
+  <circle cx="500" cy="500" r="240" fill="#d1a446"/>
+  <circle cx="500" cy="500" r="233" fill="#0f2b20"/>
+  <g filter="url(#jq)" fill="#e6c470"><path d="M353 447L353 430A144 118 0 0 1 641 430C641 470 618 488 588 508C566 523 550 533 550 548L550 559L455 559L455 538C455 510 474 492 500 472C516 460 526 448 526 430A35 42 0 0 0 455 430L455 447Z"/><path d="M449 594H556V694H449Z"/></g>
 </svg>
