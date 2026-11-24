@@ -64,6 +64,8 @@ der publishable Key ist dafür gedacht, öffentlich zu sein.
      (die Projekt-ID ist der vordere Teil deiner Supabase-URL).
 
 Ohne diese Funktion klappt alles andere trotzdem – Überschrift und Kategorie trägst du dann selbst ein.
+Ist Gemini gerade überlastet (passiert im Free Tier gelegentlich), wird die Frage trotzdem gespeichert.
+In der Bibliothek erscheint dann „Fragen ohne Kategorie → Einordnen“, um das später nachzuholen.
 Kostenlos: Googles Free Tier reicht für Hunderte Vorschläge am Tag. Hinweis: Im Free Tier darf Google
 die Eingaben zur Verbesserung seiner Modelle verwenden.
 

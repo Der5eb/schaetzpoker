@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { Icon } from '../components/Icon'
 import { Shell } from '../components/Shell'
-import { fetchCategories, fetchQuestions } from '../lib/data'
-import { formatAnswer } from '../lib/format'
+import { ensureCategory, fetchCategories, fetchQuestions, suggestMeta, toInput, updateQuestion } from '../lib/data'
+import { fallbackTitle, formatAnswer } from '../lib/format'
 import type { Category, Question } from '../lib/types'
 
 type StatusFilter = 'all' | 'draft' | 'open' | 'played'
@@ -83,6 +83,38 @@ export function Library() {
 
   const total = [...counts.values()].reduce((a, b) => a + b, 0)
 
+  // Fragen, bei denen die KI beim Speichern nicht erreichbar war
+  const unsorted = (questions ?? []).filter((q) => !q.category_id && q.question.trim())
+  const [sorting, setSorting] = useState<{ running: boolean; done: number; failed: number; total: number } | null>(null)
+
+  async function sortWithAi() {
+    if (!questions) return
+    let cats = categories
+    let done = 0
+    let failed = 0
+    const total = unsorted.length
+    const updated = new Map<string, Question>()
+    setSorting({ running: true, done, failed, total })
+    for (const q of unsorted) {
+      try {
+        const s = await suggestMeta(toInput(q), cats.map((c) => c.name))
+        const { category, created } = await ensureCategory(s.category, cats)
+        if (created) cats = [...cats, category]
+        // Überschrift nur ersetzen, wenn sie noch der automatische Notbehelf ist
+        const keepTitle = q.title.trim() && q.title !== fallbackTitle(q.question)
+        updated.set(q.id, await updateQuestion(q.id, { category_id: category.id, ...(keepTitle ? {} : { title: s.title }) }))
+        done++
+      } catch (e) {
+        console.error(e)
+        failed++
+      }
+      setSorting({ running: true, done, failed, total })
+    }
+    setCategories(cats)
+    setQuestions((qs) => qs?.map((q) => updated.get(q.id) ?? q) ?? null)
+    setSorting(failed ? { running: false, done, failed, total } : null)
+  }
+
   return (
     <Shell title="Bibliothek" back="/">
       <div className="-mt-2 mb-4 flex items-center gap-2">
@@ -124,6 +156,28 @@ export function Library() {
           </Chip>
         )}
       </div>
+
+      {(unsorted.length > 0 || sorting) && (
+        <div className="card mb-4 flex items-center justify-between gap-3 px-4 py-3">
+          <p className="text-sm text-cream-300">
+            {sorting?.running
+              ? `KI ordnet ein … ${sorting.done + sorting.failed} von ${sorting.total}`
+              : sorting
+                ? `${sorting.done} eingeordnet, ${sorting.failed} fehlgeschlagen (KI überlastet) – gleich nochmal versuchen.`
+                : `${unsorted.length} ${unsorted.length === 1 ? 'Frage' : 'Fragen'} ohne Kategorie`}
+          </p>
+          {unsorted.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost shrink-0 px-3 py-1.5 text-sm"
+              disabled={sorting?.running}
+              onClick={sortWithAi}
+            >
+              <Icon name="sparkle" className="size-4 text-gold-400" /> Einordnen
+            </button>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-chip-red">{error}</p>}
       {!questions && !error && <p className="text-cream-300">Lädt …</p>}

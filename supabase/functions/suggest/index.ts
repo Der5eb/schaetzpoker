@@ -3,7 +3,7 @@
 //
 // Benötigte Secrets (Supabase Dashboard → Edge Functions → Secrets):
 //   GEMINI_API_KEY  – Schlüssel aus https://aistudio.google.com/apikey
-//   GEMINI_MODEL    – optional, Standard: gemini-flash-latest
+//   GEMINI_MODEL    – optional, Standard: gemini-flash-lite-latest (mit automatischen Ausweichmodellen)
 //
 // Die Funktion prüft selbst, ob ein angemeldeter Benutzer anfragt
 // ("Verify JWT" kann deshalb ausgeschaltet bleiben).
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) return json({ error: 'GEMINI_API_KEY fehlt in den Supabase-Secrets' }, 500)
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-flash-latest'
+  const model = Deno.env.get('GEMINI_MODEL') || FALLBACK_MODELS[0]
 
   let body: Body
   try {
@@ -77,27 +77,58 @@ Deno.serve(async (req) => {
   }
   if (!body.question?.trim()) return json({ error: 'Frage fehlt' }, 400)
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: buildPrompt(body) }] }],
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: { title: { type: 'STRING' }, category: { type: 'STRING' } },
-          required: ['title', 'category'],
-        },
+  const request = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: buildPrompt(body) }] }],
+    generationConfig: {
+      temperature: 0.3,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: { title: { type: 'STRING' }, category: { type: 'STRING' } },
+        required: ['title', 'category'],
       },
-    }),
+    },
   })
 
+  // Ist ein Modell überlastet oder nicht verfügbar, wird das nächste probiert.
+  // Erstes Modell bei kurzzeitiger Überlastung einmal wiederholen.
+  const attempts = [model, model, ...FALLBACK_MODELS.filter((m) => m !== model)]
+  const errors: string[] = []
+  for (const [i, m] of attempts.entries()) {
+    if (i === 1) await new Promise((r) => setTimeout(r, 1200))
+    const result = await askGemini(m, apiKey, request)
+    if ('title' in result) return json({ ...result, model: m })
+    errors.push(`${m}: ${result.error}`)
+    console.error('Gemini-Fehler', m, result.error)
+    if (!result.retry) break
+  }
+  return json({ error: `Gemini nicht verfügbar – ${errors.join(' | ')}` }, 502)
+})
+
+// Reihenfolge: schnelles "Lite"-Modell zuerst – für Überschrift + Kategorie reicht es völlig.
+const FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.8-flash']
+
+type GeminiResult = { title: string; category: string } | { error: string; retry: boolean }
+
+async function askGemini(model: string, apiKey: string, request: string): Promise<GeminiResult> {
+  let res: Response
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: request,
+      signal: AbortSignal.timeout(8000),
+    })
+  } catch (e) {
+    return { error: `keine Antwort (${e instanceof Error ? e.name : 'Fehler'})`, retry: true }
+  }
+
   if (!res.ok) {
-    const detail = await res.text()
-    console.error('Gemini-Fehler', res.status, detail)
-    return json({ error: `Gemini antwortet mit ${res.status}` }, 502)
+    const detail = await res.json().catch(() => null)
+    const message = String(detail?.error?.message ?? '').slice(0, 120)
+    // 400/401/403 = Schlüssel oder Anfrage falsch → andere Modelle helfen nicht
+    const retry = ![400, 401, 403].includes(res.status)
+    return { error: `${res.status} ${message}`.trim(), retry }
   }
 
   const data = await res.json()
@@ -105,9 +136,11 @@ Deno.serve(async (req) => {
   const text = parts.filter((p) => !p.thought && p.text).map((p) => p.text).join('')
   try {
     const out = JSON.parse(text)
-    return json({ title: String(out.title ?? '').trim(), category: String(out.category ?? '').trim() })
+    const title = String(out.title ?? '').trim()
+    const category = String(out.category ?? '').trim()
+    if (!title || !category) return { error: 'leere Antwort', retry: true }
+    return { title, category }
   } catch {
-    console.error('Unerwartete Gemini-Antwort', text)
-    return json({ error: 'Unerwartete KI-Antwort' }, 502)
+    return { error: 'unerwartetes Antwortformat', retry: true }
   }
-})
+}
