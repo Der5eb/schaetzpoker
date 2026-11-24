@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Farbwelt: Pokertisch – dunkler Filz, Gold, Creme */
+@theme {
+  --color-felt-950: #08170f;
+  --color-felt-900: #0d241b;
+  --color-felt-800: #123528;
+  --color-felt-700: #1a4636;
+  --color-felt-600: #245a46;
+  --color-gold-300: #ecd08a;
+  --color-gold-400: #d4a84b;
+  --color-gold-500: #b88a2e;
+  --color-cream-50: #fbf6ea;
+  --color-cream-100: #f3e9d2;
+  --color-cream-300: #cfc3a6;
+  --color-chip-red: #c8423b;
+
+  --font-display: "Georgia", "Iowan Old Style", "Times New Roman", serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-felt-900 text-cream-100 font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-gold-400;
+  }
+}
