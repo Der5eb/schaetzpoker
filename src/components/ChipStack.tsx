@@ -95,7 +95,8 @@ export function ChipStack({ className = '', delay = 200 }: { className?: string;
   const maxChips = Math.max(...STACKS.map((s) => s.chips.length))
   const height = maxChips * H + RY * 2 + 10
   const base = height - RY - H - 4 // Oberseite des untersten Chips
-  let order = 0
+  // Fall-Reihenfolge: erst der linke Stapel, dann der rechte
+  const offsets = STACKS.map((_, si) => STACKS.slice(0, si).reduce((sum, s) => sum + s.chips.length, 0))
 
   return (
     <svg viewBox={`0 0 274 ${height}`} className={className} aria-hidden="true" overflow="visible">
@@ -115,7 +116,7 @@ export function ChipStack({ className = '', delay = 200 }: { className?: string;
         stack.chips.map((t, i) => {
           const cx = stack.cx + JITTER[(i + si * 3) % JITTER.length]
           const cy = base - i * H
-          const n = order++
+          const n = offsets[si] + i
           return (
             <g
               key={`${si}-${i}`}
