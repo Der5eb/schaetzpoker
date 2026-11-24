@@ -48,7 +48,26 @@ der publishable Key ist dafür gedacht, öffentlich zu sein.
    `https://<dein-github-name>.github.io/schaetzpoker/`.
 5. In Supabase unter **Authentication → URL Configuration** diese Adresse als **Site URL** eintragen.
 
-## 4. Aufs Handy
+## 4. KI-Vorschläge (Überschrift & Kategorie)
+
+1. Auf https://aistudio.google.com/apikey mit einem Google-Konto anmelden → **Create API key**.
+   Den Schlüssel kopieren (er bleibt geheim, nicht ins Repo schreiben).
+2. Supabase Dashboard → **Edge Functions → Secrets** → **Add new secret**:
+   Name `GEMINI_API_KEY`, Wert = der kopierte Schlüssel.
+3. Funktion anlegen – eine der beiden Varianten:
+   - **Im Browser:** **Edge Functions → Deploy a new function → Via Editor**, Name `suggest`,
+     den Inhalt von [`supabase/functions/suggest/index.ts`](supabase/functions/suggest/index.ts) einfügen → **Deploy**.
+     Danach in den Einstellungen der Funktion **Verify JWT / Enforce JWT verification** ausschalten
+     (die Funktion prüft das Login selbst).
+   - **Im Terminal:** einmalig `npx supabase login`, dann
+     `npx supabase functions deploy suggest --no-verify-jwt --project-ref <projekt-id>`
+     (die Projekt-ID ist der vordere Teil deiner Supabase-URL).
+
+Ohne diese Funktion klappt alles andere trotzdem – Überschrift und Kategorie trägst du dann selbst ein.
+Kostenlos: Googles Free Tier reicht für Hunderte Vorschläge am Tag. Hinweis: Im Free Tier darf Google
+die Eingaben zur Verbesserung seiner Modelle verwenden.
+
+## 5. Aufs Handy
 
 Die Adresse im Handy-Browser öffnen →
 - **iPhone (Safari):** Teilen → *Zum Home-Bildschirm*

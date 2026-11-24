@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchQuestions } from '../lib/data'
 import { Shell } from '../components/Shell'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
@@ -11,6 +13,13 @@ const entries = [
 
 export function Home() {
   const { session } = useAuth()
+  const [stats, setStats] = useState<{ ready: number; total: number } | null>(null)
+
+  useEffect(() => {
+    fetchQuestions()
+      .then((qs) => setStats({ total: qs.length, ready: qs.filter((q) => q.status === 'ready' && !q.played_at).length }))
+      .catch(() => {})
+  }, [])
 
   return (
     <Shell title="Schätzpoker">
@@ -22,7 +31,11 @@ export function Home() {
             className="rounded-xl border border-felt-700 bg-felt-800 px-5 py-4 transition-colors hover:border-gold-500"
           >
             <div className="font-display text-xl text-cream-50">{e.title}</div>
-            <div className="text-sm text-cream-300">{e.text}</div>
+            <div className="text-sm text-cream-300">
+              {e.to === '/bibliothek' && stats
+                ? `${stats.total} ${stats.total === 1 ? 'Frage' : 'Fragen'}, davon ${stats.ready} spielbereit`
+                : e.text}
+            </div>
           </Link>
         ))}
       </nav>

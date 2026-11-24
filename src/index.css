@@ -35,3 +35,31 @@
     @apply outline-2 outline-offset-2 outline-gold-400;
   }
 }
+
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-felt-600 bg-felt-800 px-3 py-2.5 text-base text-cream-50 outline-none placeholder:text-cream-300/50 focus:border-gold-400;
+  }
+  textarea.field {
+    field-sizing: content;
+    @apply min-h-[5.5rem] resize-none;
+  }
+  .label {
+    @apply text-sm text-cream-300;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition-colors disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-gold-400 text-felt-950 hover:bg-gold-300;
+  }
+  .btn-ghost {
+    @apply border border-felt-600 text-cream-100 hover:border-gold-500;
+  }
+  .btn-danger {
+    @apply border border-chip-red/60 text-chip-red hover:bg-chip-red/10;
+  }
+  .card {
+    @apply rounded-xl border border-felt-700 bg-felt-800;
+  }
+}
