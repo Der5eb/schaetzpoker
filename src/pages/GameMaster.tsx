@@ -57,26 +57,29 @@ export function GameMaster() {
   const flushing = useRef(false)
   const [saveState, setSaveState] = useState<'ok' | 'retrying' | 'failed'>('ok')
 
-  const flush = useCallback(async (attempt = 0): Promise<void> => {
-    const p = pending.current
-    if (!p || flushing.current) return
-    flushing.current = true
-    try {
-      await updateGame(p.id, p.patch)
-      flushing.current = false
-      if (pending.current === p) pending.current = null
-      if (pending.current) return flush()
-      setSaveState('ok')
-    } catch (e) {
-      console.error(e)
-      flushing.current = false
-      if (attempt < 3) {
-        setSaveState('retrying')
-        window.setTimeout(() => flush(attempt + 1), 800 * 2 ** attempt)
-      } else {
-        setSaveState('failed')
+  const flush = useCallback((): Promise<void> => {
+    async function run(attempt: number): Promise<void> {
+      const p = pending.current
+      if (!p || flushing.current) return
+      flushing.current = true
+      try {
+        await updateGame(p.id, p.patch)
+        flushing.current = false
+        if (pending.current === p) pending.current = null
+        if (pending.current) return run(0)
+        setSaveState('ok')
+      } catch (e) {
+        console.error(e)
+        flushing.current = false
+        if (attempt < 3) {
+          setSaveState('retrying')
+          window.setTimeout(() => run(attempt + 1), 800 * 2 ** attempt)
+        } else {
+          setSaveState('failed')
+        }
       }
     }
+    return run(0)
   }, [])
 
   useEffect(() => {
