@@ -53,7 +53,7 @@ export function Fixed({ children }: { children: ReactNode }) {
 export function ActionBar({ children }: { children: ReactNode }) {
   return (
     <Fixed>
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-felt-950 via-felt-950/85 to-transparent px-4 pt-10 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-felt-950 from-70% via-felt-950/85 via-85% to-transparent px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="pointer-events-auto mx-auto flex max-w-xl flex-col gap-2">{children}</div>
       </div>
     </Fixed>

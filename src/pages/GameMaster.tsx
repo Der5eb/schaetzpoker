@@ -225,21 +225,31 @@ export function GameMaster() {
 
       {s.phase === 'round' && question && (
         <div className="animate-enter flex flex-col gap-4 pb-48">
-          <ol className="grid grid-cols-4 gap-2" aria-label="Fortschritt der Runde">
-            {roundSteps.map((step, i) => (
-              <li key={step.label} className="flex flex-col items-center gap-1.5">
-                <MiniCard shown={s.reveal >= i} current={s.reveal === i} icon={step.icon} />
-                <span className={`text-[0.7rem] font-medium ${s.reveal >= i ? 'text-cream-200' : 'text-cream-400'}`}>{step.label}</span>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <CategoryBadge category={categories.find((c) => c.id === question.category_id)} />
             <span className="rounded-full bg-chip-red/90 px-2.5 py-1 text-xs font-semibold text-cream-50">
               {s.decided ? 'Runde entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
             </span>
           </div>
+          {/* Fortschritt der Runde – eine schmale Zeile statt großer Karten */}
+          <ol className="grid grid-cols-4 gap-1 rounded-xl bg-felt-950/50 p-1 ring-1 ring-white/[0.05]" aria-label="Fortschritt der Runde">
+            {roundSteps.map((step, i) => {
+              const done = s.reveal > i
+              const current = s.reveal === i
+              return (
+                <li
+                  key={step.label}
+                  aria-current={current ? 'step' : undefined}
+                  className={`flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold transition-colors duration-300 ${
+                    current ? 'bg-gold-300 text-felt-950' : done ? 'text-cream-100' : 'text-cream-400'
+                  }`}
+                >
+                  <Icon name={step.icon} weight="fill" className="size-3.5 shrink-0" />
+                  <span className="truncate">{step.label.replace('Hinweis ', 'H')}</span>
+                </li>
+              )
+            })}
+          </ol>
           <h2 className="font-display text-[1.75rem] leading-tight font-extrabold text-cream-50">{question.title}</h2>
 
           <Block label="Frage" icon="cards" shown focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
@@ -418,27 +428,6 @@ function Stat({ label, value, chip }: { label: string; value: string; chip?: boo
         {value}
       </dd>
     </div>
-  )
-}
-
-/** Kleine Spielkarte für den Rundenfortschritt – dreht sich beim Aufdecken um. */
-function MiniCard({ shown, current, icon }: { shown: boolean; current: boolean; icon: IconName }) {
-  return (
-    <span className="relative block aspect-[5/7] w-full [perspective:600px]">
-      <span
-        className="absolute inset-0 transition-transform duration-700 ease-[var(--ease-out-expo)] [transform-style:preserve-3d]"
-        style={{ transform: shown ? 'rotateY(0deg)' : 'rotateY(180deg)' }}
-      >
-        <span
-          className={`playing-card absolute inset-0 grid place-items-center [backface-visibility:hidden] ${
-            current ? 'ring-2 ring-gold-300 ring-offset-2 ring-offset-felt-900' : ''
-          }`}
-        >
-          <Icon name={icon} weight="fill" className={`size-6 ${icon === 'diamond' ? 'text-chip-red' : 'text-ink'}`} />
-        </span>
-        <span className="card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]" />
-      </span>
-    </span>
   )
 }
 
