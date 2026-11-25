@@ -177,9 +177,8 @@ export function QuestionEditor() {
         saveDraft(null)
         navigate(`/frage/${saved.id}`, { replace: true, state: { saved: true, aiFailed } })
       } else {
-        setOriginal(saved)
-        setForm(toInput(saved))
-        navigate('.', { replace: true, state: { saved: true, aiFailed } })
+        // Bearbeiten ist damit erledigt – zurück zur Bibliothek, dort kurze Bestätigung
+        navigate('/bibliothek', { state: { savedTitle: saved.title, savedReady: saved.status === 'ready', aiFailed } })
       }
     } catch (e) {
       console.error(e)

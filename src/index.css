@@ -190,12 +190,10 @@
 }
 
 /* Karte wird umgedreht (River) */
+/* Eine durchgehende Bewegung – ohne Zwischenstation, damit nichts ruckelt */
 @keyframes flip {
   from {
-    transform: rotateY(180deg) scale(0.92);
-  }
-  55% {
-    transform: rotateY(70deg) scale(1.06);
+    transform: rotateY(180deg) scale(0.94);
   }
   to {
     transform: rotateY(0deg) scale(1);
@@ -244,7 +242,7 @@
 }
 
 @utility animate-flip {
-  animation: flip 1.2s var(--ease-out-quart) 0.45s backwards;
+  animation: flip 1.15s cubic-bezier(0.45, 0.05, 0.25, 1) 0.45s backwards;
 }
 
 @utility animate-chip-drop {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { ChipMark } from '../components/ChipMark'
 import { Icon } from '../components/Icon'
@@ -34,7 +34,27 @@ function matchesStatus(q: Question, s: StatusFilter) {
   return true
 }
 
+interface SavedNotice {
+  savedTitle: string
+  savedReady: boolean
+  aiFailed?: boolean
+}
+
 export function Library() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [notice, setNotice] = useState<SavedNotice | null>(() => {
+    const st = location.state as SavedNotice | null
+    return st?.savedTitle ? st : null
+  })
+
+  // Bestätigung nach dem Speichern: kurz zeigen, dann ausblenden (und nicht erneut beim Zurückblättern)
+  useEffect(() => {
+    if (!notice) return
+    navigate('.', { replace: true, state: null })
+    const t = window.setTimeout(() => setNotice(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [notice, navigate])
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -147,6 +167,22 @@ export function Library() {
         </Link>
       }
     >
+      {notice && (
+        <div role="status" className="animate-enter mb-4 flex items-center gap-3 rounded-2xl border border-ok/35 bg-ok/[0.08] px-4 py-3">
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-ok text-felt-950">
+            <Icon name="check" weight="bold" className="size-4" />
+          </span>
+          <p className="min-w-0 flex-1 text-sm text-cream-100">
+            <span className="font-semibold">„{notice.savedTitle}“</span> gespeichert
+            {notice.savedReady ? ' · spielbereit' : ' · als Entwurf'}
+            {notice.aiFailed && <span className="block text-gold-200">KI nicht erreichbar – Einordnung später ergänzen.</span>}
+          </p>
+          <button type="button" aria-label="Meldung schließen" className="grid size-11 shrink-0 place-items-center rounded-full text-cream-300 hover:bg-white/5" onClick={() => setNotice(null)}>
+            <Icon name="x" className="size-4" />
+          </button>
+        </div>
+      )}
+
       <label className="relative mb-3 block">
         <Icon name="search" className="pointer-events-none absolute top-1/2 left-3.5 size-[1.1rem] -translate-y-1/2 text-cream-400" />
         <input
