@@ -66,7 +66,8 @@ export function QuestionEditor() {
   const [saving, setSaving] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [readyHint, setReadyHint] = useState<string | null>(null)
+  // Vollständige Fragen sind automatisch spielbereit – außer man hält sie bewusst zurück
+  const [holdBack, setHoldBack] = useState(false)
   const removedImages = useRef<string[]>([])
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export function QuestionEditor() {
       .then((q) => {
         setOriginal(q)
         setForm(toInput(q))
+        setHoldBack(q.status === 'draft' && missingForReady(toInput(q)).length === 0)
         setAnswerText(numberToInput(q.answer))
       })
       .catch(() => setError('Frage nicht gefunden.'))
@@ -141,15 +143,6 @@ export function QuestionEditor() {
     }
   }
 
-  function toggleReady(checked: boolean) {
-    setReadyHint(null)
-    if (checked && missing.length) {
-      setReadyHint(`Noch offen: ${missing.join(', ')}`)
-      return
-    }
-    set('status', checked ? 'ready' : 'draft')
-  }
-
   async function save() {
     if (!form.question.trim() && form.question_media.length === 0) {
       setError('Bitte zumindest die Frage eingeben.')
@@ -162,7 +155,7 @@ export function QuestionEditor() {
     setSaving(true)
     setError(null)
 
-    let next: QuestionInput = { ...current, status: missing.length ? 'draft' : form.status }
+    let next: QuestionInput = { ...current, status: missing.length || holdBack ? 'draft' : 'ready' }
     let aiFailed = false
 
     if (form.question.trim() && (!next.title.trim() || !next.category_id)) {
@@ -236,9 +229,15 @@ export function QuestionEditor() {
                 {category && <span className="size-2 rounded-full" style={{ background: category.color }} />}
                 {category?.name ?? 'ohne Kategorie'}
               </p>
-              {original.status === 'draft' && (
+              {original.status === 'ready' ? (
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-ok">
+                  <Icon name="check" weight="bold" className="size-4" /> Spielbereit
+                </p>
+              ) : (
                 <p className="mt-2 text-sm text-gold-200">
-                  Als Entwurf gespeichert{missingForReady(toInput(original)).length ? ` – es fehlt noch: ${missingForReady(toInput(original)).join(', ')}` : ''}.
+                  {missingForReady(toInput(original)).length
+                    ? `Als Entwurf gespeichert – es fehlt noch: ${missingForReady(toInput(original)).join(', ')}.`
+                    : 'Zurückgehalten – erscheint nicht am Spielabend.'}
                 </p>
               )}
               {navState?.aiFailed && (
@@ -349,22 +348,33 @@ export function QuestionEditor() {
               </button>
             </div>
 
-            <label
-              className={`flex cursor-pointer items-center gap-3.5 rounded-2xl border px-4 py-3.5 transition-colors ${
-                form.status === 'ready' ? 'border-gold-400/50 bg-gold-400/10' : 'border-white/10 bg-felt-950/40'
-              }`}
-            >
-              <input type="checkbox" className="peer sr-only" checked={form.status === 'ready'} onChange={(e) => toggleReady(e.target.checked)} />
-              <span
-                aria-hidden="true"
-                className="relative h-7 w-12 shrink-0 rounded-full bg-felt-700 transition-colors peer-checked:bg-gold-400 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold-300 after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-cream-100 after:shadow after:transition-transform after:duration-200 peer-checked:after:translate-x-5"
-              />
-              <span>
-                <span className="block font-semibold text-cream-50">Spielbereit</span>
-                <span className="block text-sm text-cream-400">Erscheint am Spielabend bei der Kategorie-Wahl</span>
-              </span>
-            </label>
-            {readyHint && <p className="text-sm text-gold-200">{readyHint}</p>}
+            {missing.length > 0 ? (
+              <p className="flex items-start gap-3 rounded-2xl border border-white/10 bg-felt-950/40 px-4 py-3.5 text-sm text-cream-200">
+                <Icon name="cards" weight="duotone" className="mt-0.5 size-5 shrink-0 text-cream-400" />
+                <span>
+                  <span className="block font-semibold text-cream-50">Noch nicht spielbereit</span>
+                  Es fehlt: {missing.join(', ')}. Sobald alles ausgefüllt ist, wird die Frage automatisch spielbereit.
+                </span>
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className={`flex items-center gap-2 text-sm font-semibold ${holdBack ? 'text-cream-300' : 'text-ok'}`}>
+                  <Icon name={holdBack ? 'eyeOff' : 'check'} weight="bold" className="size-4" />
+                  {holdBack ? 'Zurückgehalten – erscheint nicht am Spielabend' : 'Vollständig – wird beim Speichern spielbereit'}
+                </p>
+                <label className="flex cursor-pointer items-center gap-3.5 rounded-2xl border border-white/10 bg-felt-950/40 px-4 py-3.5">
+                  <input type="checkbox" className="peer sr-only" checked={holdBack} onChange={(e) => setHoldBack(e.target.checked)} />
+                  <span
+                    aria-hidden="true"
+                    className="relative h-7 w-12 shrink-0 rounded-full bg-felt-700 transition-colors peer-checked:bg-gold-400 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold-300 after:absolute after:top-1 after:left-1 after:size-5 after:rounded-full after:bg-cream-100 after:shadow after:transition-transform after:duration-200 peer-checked:after:translate-x-5"
+                  />
+                  <span>
+                    <span className="block font-semibold text-cream-50">Zurückhalten</span>
+                    <span className="block text-sm text-cream-400">Noch nicht am Spielabend verwenden</span>
+                  </span>
+                </label>
+              </div>
+            )}
             {form.played_at && (
               <div className="flex items-center justify-between gap-3 text-sm text-cream-400">
                 <span>Gespielt am {new Date(form.played_at).toLocaleDateString('de-DE')}</span>

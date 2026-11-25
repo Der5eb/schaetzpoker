@@ -21,8 +21,9 @@ export function buildDisplay(
   for (const q of available) if (q.category_id) counts.set(q.category_id, (counts.get(q.category_id) ?? 0) + 1)
 
   const category = categories.find((c) => c.id === state.categoryId)
-  const q = state.phase === 'round' ? questions.find((x) => x.id === state.questionId) : undefined
-  const reveal = q ? state.reveal : 0
+  const inRound = state.phase === 'round' || state.phase === 'showdown'
+  const q = inRound ? questions.find((x) => x.id === state.questionId) : undefined
+  const reveal = q ? (state.phase === 'showdown' ? 3 : state.reveal) : 0
 
   return {
     phase: state.phase,
@@ -58,6 +59,13 @@ export function buildDisplay(
     reveal,
     decided: state.decided,
     startedAt: game.started_at,
+    recap:
+      state.phase === 'ended'
+        ? questions
+            .filter((x) => x.played_at && x.played_at >= game.started_at)
+            .sort((a, b) => (a.played_at ?? '').localeCompare(b.played_at ?? ''))
+            .map((x) => ({ title: x.title, answer: formatAnswer(x), value: x.answer }))
+        : [],
     focus: q && state.focus && isZoomable(state.focus, reveal) ? state.focus : null,
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
 import { CategoryBadge } from '../components/CategoryBadge'
@@ -7,15 +7,15 @@ import { Icon, type IconName } from '../components/Icon'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HoldButton } from '../components/HoldButton'
 import { Peek } from '../components/Peek'
-import { ActionBar } from '../components/Shell'
-import { blindInfo, formatBlinds } from '../game/blinds'
+import { ActionBar, Fixed } from '../components/Shell'
+import { blindInfo, formatBlinds, validateLevels } from '../game/blinds'
 import { availableQuestions, buildDisplay, isZoomable, mediaKey } from '../game/display'
 import { normalizeRoomCode, useGmRoom } from '../game/room'
 import type { GameState, VideoCommand } from '../game/types'
 import { fetchCategories, fetchGame, fetchQuestions, markPlayed, updateGame } from '../lib/data'
 import { formatAnswer, formatTime } from '../lib/format'
 import { mediaUrl } from '../lib/media'
-import type { Category, Game, Media, Question } from '../lib/types'
+import type { BlindLevel, Category, Game, Media, Question } from '../lib/types'
 import { youTubeThumbnail } from '../lib/youtube'
 
 const REVEAL_LABELS = ['Hinweis 1 aufdecken', 'Hinweis 2 aufdecken', 'Lösung aufdecken']
@@ -51,17 +51,45 @@ export function GameMaster() {
 
   const { tvOnline, sendVideo } = useGmRoom(game?.room_code ?? null, display)
 
-  async function save(patch: Partial<Game>) {
-    if (!game) return
-    const next = { ...game, ...patch }
-    setGame(next)
+  // Speichern: Handy und TV zeigen den neuen Stand sofort. Die Datenbank wird
+  // nachgezogen – bei Fehlern automatisch erneut (und sobald das Netz zurück ist).
+  const pending = useRef<{ id: string; patch: Partial<Game> } | null>(null)
+  const flushing = useRef(false)
+  const [saveState, setSaveState] = useState<'ok' | 'retrying' | 'failed'>('ok')
+
+  const flush = useCallback(async (attempt = 0): Promise<void> => {
+    const p = pending.current
+    if (!p || flushing.current) return
+    flushing.current = true
     try {
-      await updateGame(game.id, patch)
-      setError(null)
+      await updateGame(p.id, p.patch)
+      flushing.current = false
+      if (pending.current === p) pending.current = null
+      if (pending.current) return flush()
+      setSaveState('ok')
     } catch (e) {
       console.error(e)
-      setError('Speichern fehlgeschlagen – Internetverbindung prüfen.')
+      flushing.current = false
+      if (attempt < 3) {
+        setSaveState('retrying')
+        window.setTimeout(() => flush(attempt + 1), 800 * 2 ** attempt)
+      } else {
+        setSaveState('failed')
+      }
     }
+  }, [])
+
+  useEffect(() => {
+    const onOnline = () => flush()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [flush])
+
+  async function save(patch: Partial<Game>) {
+    if (!game) return
+    setGame({ ...game, ...patch })
+    pending.current = { id: game.id, patch: { ...(pending.current?.patch ?? {}), ...patch } }
+    await flush()
   }
 
   // Wechselt die Ansicht (Aufdecken, neue Phase), wird ein vergrößertes Medium geschlossen
@@ -86,9 +114,8 @@ export function GameMaster() {
     try {
       const playedAt = await markPlayed(game.id, question.id, s.completed + 1)
       setQuestions((qs) => qs.map((q) => (q.id === question.id ? { ...q, played_at: playedAt } : q)))
-      const completed = s.completed + 1
-      const levelUp = completed % Math.max(1, game.questions_per_level) === 0
-      await setState({ phase: levelUp ? 'blinds' : 'category', completed, questionId: null, categoryId: null, reveal: 0, decided: false })
+      // Erst der Showdown am TV – die nächste Runde startet mit „Weiter“
+      await setState({ phase: 'showdown', reveal: 3 })
     } catch (e) {
       console.error(e)
       setError('Runde konnte nicht abgeschlossen werden.')
@@ -97,9 +124,18 @@ export function GameMaster() {
     }
   }
 
+  const levelUpNext = (s.completed + 1) % Math.max(1, game.questions_per_level) === 0
+
+  function nextRound() {
+    const completed = s.completed + 1
+    setState({ phase: levelUpNext ? 'blinds' : 'category', completed, questionId: null, categoryId: null, reveal: 0, decided: false })
+  }
+
   async function finishGame() {
     if (!game) return
-    await save({ finished_at: new Date().toISOString(), state: { ...s, phase: 'ended' } })
+    // Wird direkt aus dem Showdown beendet, zählt die letzte Frage noch mit
+    const completed = s.phase === 'showdown' ? s.completed + 1 : s.completed
+    await save({ finished_at: new Date().toISOString(), state: { ...s, completed, phase: 'ended' } })
     navigate('/')
   }
 
@@ -128,13 +164,41 @@ export function GameMaster() {
           </span>
         </div>
         <dl className="mt-3 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl bg-felt-950/45 py-2.5 ring-1 ring-white/[0.05]">
-          <Stat label="Frage" value={String(s.completed + (s.phase === 'round' ? 1 : 0) || '–')} />
+          <Stat label="Frage" value={s.phase === 'lobby' ? '–' : String(display.questionNumber)} />
           <Stat label="Blinds" value={formatBlinds(info.current)} chip />
           <Stat label="Erhöhung" value={s.phase === 'blinds' ? 'jetzt' : `in ${info.untilIncrease}`} />
         </dl>
       </header>
 
-      {error && <p className="mb-4 text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-danger">
+          {error}
+        </p>
+      )}
+
+      {saveState !== 'ok' && (
+        <Fixed>
+          <div
+            role="alert"
+            className={`fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-3 px-4 pt-[max(0.6rem,env(safe-area-inset-top))] pb-2.5 text-sm font-semibold shadow-lg ${
+              saveState === 'failed' ? 'bg-chip-red text-cream-50' : 'bg-gold-300 text-felt-950'
+            }`}
+          >
+            {saveState === 'failed' ? (
+              <>
+                <span>Nicht gespeichert – Internet prüfen</span>
+                <button type="button" className="min-h-11 rounded-lg bg-cream-50 px-3 text-felt-950" onClick={() => flush()}>
+                  Erneut speichern
+                </button>
+              </>
+            ) : (
+              <span className="flex min-h-11 items-center gap-2">
+                <Icon name="chip" weight="duotone" className="size-4 animate-spin" /> Speichere erneut …
+              </span>
+            )}
+          </div>
+        </Fixed>
+      )}
 
       {s.phase === 'lobby' && (
         <div className="animate-enter flex flex-col items-center gap-5 py-10 text-center">
@@ -203,12 +267,16 @@ export function GameMaster() {
 
           <ActionBar>
             <p className="flex items-center justify-center gap-1.5 text-center text-xs font-medium text-cream-300">
-              {s.reveal < 3 ? (
+              {!tvOnline ? (
+                <span className="text-danger">TV offline – er holt den Stand nach, sobald er verbunden ist</span>
+              ) : s.reveal < 3 ? (
                 <>
                   <Icon name="tv" className="size-3.5 text-gold-300" /> Als Nächstes am TV: <span className="text-cream-50">{NEXT_LABELS[s.reveal]}</span>
                 </>
               ) : (
-                'Beenden markiert die Frage als gespielt'
+                <>
+                  <Icon name="tv" className="size-3.5 text-gold-300" /> Als Nächstes am TV: <span className="text-cream-50">Showdown</span>
+                </>
               )}
             </p>
             <HoldButton
@@ -268,6 +336,20 @@ export function GameMaster() {
         </div>
       )}
 
+      {s.phase === 'showdown' && question && (
+        <div className="animate-enter flex flex-col items-center gap-4 py-6 text-center">
+          <p className="flex items-center gap-2 text-cream-200">
+            <Icon name="crown" weight="duotone" className="size-5 text-gold-300" /> Showdown am TV
+          </p>
+          <h2 className="font-display text-2xl leading-tight font-extrabold text-cream-50">{question.title}</h2>
+          <p className="font-display text-5xl font-black text-gold-200 tabular-nums">{formatAnswer(question)}</p>
+          <p className="max-w-[32ch] text-sm text-cream-300">Alle, die noch dabei sind, decken ihre Schätzung auf. Wer am nächsten dran ist, gewinnt den Pot.</p>
+          <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" onClick={nextRound}>
+            {levelUpNext ? 'Weiter: Blinds steigen' : 'Weiter zur Kategorie-Wahl'} <Icon name="arrow" weight="bold" className="size-5" />
+          </button>
+        </div>
+      )}
+
       {s.phase === 'blinds' && (
         <div className="animate-enter flex flex-col items-center gap-4 py-8 text-center">
           <p className="text-cream-300">Der TV kündigt die neuen Blinds an</p>
@@ -300,12 +382,7 @@ export function GameMaster() {
       {s.phase !== 'round' && s.phase !== 'ended' && (
         <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && s.categoryId ? 'pb-44' : ''}`}>
           <Collapsible title="Blinds anpassen" icon="stack">
-            <BlindEditor
-              levels={game.blind_levels}
-              perLevel={game.questions_per_level}
-              currentLevel={info.levelIndex}
-              onChange={(levels, perLevel) => save({ blind_levels: levels, questions_per_level: perLevel })}
-            />
+            <BlindSettings game={game} onApply={(levels, perLevel) => save({ blind_levels: levels, questions_per_level: perLevel })} />
           </Collapsible>
           <Collapsible title="TV neu verbinden" icon="tv">
             <RoomCodeForm current={game.room_code} onSave={(code) => save({ room_code: code })} />
@@ -359,6 +436,68 @@ function MiniCard({ shown, current, icon }: { shown: boolean; current: boolean; 
         <span className="card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]" />
       </span>
     </span>
+  )
+}
+
+/**
+ * Blinds während des Abends ändern: erst lokal bearbeiten, dann „Übernehmen“.
+ * So landet nie ein halb getippter Wert (z. B. 0) am TV, und Stufenwechsel sind angekündigt.
+ */
+function BlindSettings({ game, onApply }: { game: Game; onApply: (levels: BlindLevel[], perLevel: number) => void }) {
+  const [levels, setLevels] = useState(game.blind_levels)
+  const [perLevel, setPerLevel] = useState(game.questions_per_level)
+  const [resetKey, setResetKey] = useState(0)
+
+  const dirty = JSON.stringify(levels) !== JSON.stringify(game.blind_levels) || perLevel !== game.questions_per_level
+  const problem = validateLevels(levels, perLevel)
+  const now = blindInfo(game.blind_levels, game.questions_per_level, game.state.completed)
+  const draft = blindInfo(levels, perLevel, game.state.completed)
+  const nextQuestion = game.state.completed + draft.untilIncrease + 1
+
+  function discard() {
+    setLevels(game.blind_levels)
+    setPerLevel(game.questions_per_level)
+    setResetKey((k) => k + 1)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <BlindEditor
+        key={resetKey}
+        levels={levels}
+        perLevel={perLevel}
+        currentLevel={draft.levelIndex}
+        onChange={(l, p) => {
+          setLevels(l)
+          setPerLevel(p)
+        }}
+      />
+      {problem ? (
+        <p role="alert" className="text-sm text-danger">
+          {problem}
+        </p>
+      ) : (
+        <p className="text-sm text-cream-300">
+          Jetzt <span className="font-semibold text-cream-50 tabular-nums">{formatBlinds(draft.current)}</span> · ab Frage {nextQuestion}:{' '}
+          <span className="font-semibold text-cream-50 tabular-nums">{formatBlinds(draft.next)}</span>
+        </p>
+      )}
+      {!problem && dirty && draft.levelIndex !== now.levelIndex && (
+        <p className="rounded-xl bg-gold-400/10 px-3 py-2 text-sm text-gold-200">
+          Achtung: Die laufenden Blinds wechseln damit sofort von {formatBlinds(now.current)} auf {formatBlinds(draft.current)}.
+        </p>
+      )}
+      {dirty && (
+        <div className="flex gap-2">
+          <button type="button" className="btn btn-ghost min-h-11 flex-1" onClick={discard}>
+            Verwerfen
+          </button>
+          <button type="button" className="btn btn-primary min-h-11 flex-1" disabled={!!problem} onClick={() => onApply(levels, perLevel)}>
+            Übernehmen
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

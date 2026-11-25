@@ -42,3 +42,14 @@ export function formatBlinds(b: BlindLevel): string {
   const f = new Intl.NumberFormat('de-DE')
   return `${f.format(b.small)} / ${f.format(b.big)}`
 }
+
+/** Prüft eine Blind-Struktur; gibt einen verständlichen Fehler zurück oder null. */
+export function validateLevels(levels: BlindLevel[], perLevel: number): string | null {
+  if (!Number.isFinite(perLevel) || perLevel < 1) return 'Erhöhen nach mindestens 1 Frage.'
+  if (levels.length === 0) return 'Mindestens eine Blind-Stufe anlegen.'
+  for (const [i, l] of levels.entries()) {
+    if (l.small <= 0) return `Stufe ${i + 1}: Small Blind muss größer als 0 sein.`
+    if (l.big <= l.small) return `Stufe ${i + 1}: Big Blind muss größer als Small Blind sein.`
+  }
+  return null
+}

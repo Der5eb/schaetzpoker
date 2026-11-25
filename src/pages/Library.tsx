@@ -4,7 +4,7 @@ import { CategoryBadge } from '../components/CategoryBadge'
 import { ChipMark } from '../components/ChipMark'
 import { Icon } from '../components/Icon'
 import { Fixed, Shell } from '../components/Shell'
-import { ensureCategory, fetchCategories, fetchQuestions, suggestMeta, toInput, updateQuestion } from '../lib/data'
+import { ensureCategory, fetchCategories, fetchQuestions, missingForReady, suggestMeta, toInput, updateQuestion } from '../lib/data'
 import { fallbackTitle, formatAnswer } from '../lib/format'
 import type { Category, Question } from '../lib/types'
 
@@ -83,6 +83,24 @@ export function Library() {
   }, [questions, status])
 
   const total = [...counts.values()].reduce((a, b) => a + b, 0)
+
+  // Vollständige Entwürfe (alles ausgefüllt, aber nicht spielbereit)
+  const completeDrafts = (questions ?? []).filter((q) => q.status === 'draft' && missingForReady(toInput(q)).length === 0)
+  const [releasing, setReleasing] = useState(false)
+
+  async function releaseDrafts() {
+    setReleasing(true)
+    const updated = new Map<string, Question>()
+    for (const q of completeDrafts) {
+      try {
+        updated.set(q.id, await updateQuestion(q.id, { status: 'ready' }))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    setQuestions((qs) => qs?.map((q) => updated.get(q.id) ?? q) ?? null)
+    setReleasing(false)
+  }
 
   // Fragen, bei denen die KI beim Speichern nicht erreichbar war
   const unsorted = (questions ?? []).filter((q) => !q.category_id && q.question.trim())
@@ -195,7 +213,22 @@ export function Library() {
         </div>
       )}
 
-      {error && <p className="text-danger">{error}</p>}
+      {status === 'draft' && completeDrafts.length > 0 && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-ok/30 bg-ok/[0.07] px-4 py-3">
+          <p className="text-sm text-cream-100">
+            {completeDrafts.length} {completeDrafts.length === 1 ? 'Entwurf ist' : 'Entwürfe sind'} vollständig
+          </p>
+          <button type="button" className="btn btn-ghost min-h-11 shrink-0 px-3 py-2 text-sm" disabled={releasing} onClick={releaseDrafts}>
+            <Icon name="check" weight="bold" className="size-4 text-ok" /> {releasing ? 'Gibt frei …' : 'Alle spielbereit machen'}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="text-danger">
+          {error}
+        </p>
+      )}
       {!questions && !error && <p className="text-cream-400">Lädt …</p>}
       {questions && questions.length === 0 && (
         <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">

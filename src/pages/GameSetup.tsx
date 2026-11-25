@@ -4,7 +4,7 @@ import { BlindEditor } from '../components/BlindEditor'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { ActionBar, SectionTitle, Shell } from '../components/Shell'
-import { defaultLevels } from '../game/blinds'
+import { defaultLevels, validateLevels } from '../game/blinds'
 import { availableQuestions } from '../game/display'
 import { newRoomCode, normalizeRoomCode } from '../game/room'
 import { createGame, fetchOpenGame, fetchQuestions, updateGame } from '../lib/data'
@@ -129,6 +129,11 @@ export function GameSetup() {
               setPerLevel(p)
             }}
           />
+          {validateLevels(levels, perLevel) && (
+            <p role="alert" className="text-sm text-danger">
+              {validateLevels(levels, perLevel)}
+            </p>
+          )}
         </section>
 
         {stats && (
@@ -159,7 +164,12 @@ export function GameSetup() {
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-primary w-full py-3.5 text-base" disabled={busy} onClick={start}>
+          <button
+            type="button"
+            className="btn btn-primary w-full py-3.5 text-base"
+            disabled={busy || !!validateLevels(levels, perLevel)}
+            onClick={start}
+          >
             <Icon name="chip" weight="duotone" className="size-5" /> Spielabend starten
           </button>
         )}

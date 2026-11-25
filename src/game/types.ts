@@ -1,6 +1,6 @@
 import type { BlindLevel, Media } from '../lib/types'
 
-export type Phase = 'lobby' | 'category' | 'round' | 'blinds' | 'ended'
+export type Phase = 'lobby' | 'category' | 'round' | 'showdown' | 'blinds' | 'ended'
 
 /** Spielstand – gehört der Spielleitung, wird in games.state gespeichert. */
 export interface GameState {
@@ -59,6 +59,8 @@ export interface DisplayState {
   focus: string | null
   /** Beginn des Abends (für den Abschluss „Der Abend in Zahlen“) */
   startedAt: string
+  /** Zum Abschluss: alle an diesem Abend gespielten Fragen mit Lösung */
+  recap: { title: string; answer: string; value: number | null }[]
 }
 
 export type VideoCommand = { key: string; cmd: 'play' | 'pause' | 'restart' }

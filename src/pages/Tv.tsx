@@ -76,6 +76,7 @@ export function Tv() {
         {display?.phase === 'lobby' && <Lobby d={display} />}
         {display?.phase === 'category' && <CategoryPick d={display} />}
         {display?.phase === 'round' && <Round d={display} videos={videos} />}
+        {display?.phase === 'showdown' && <Showdown d={display} />}
         {display?.phase === 'blinds' && <BlindsUp d={display} />}
         {display?.phase === 'ended' && <Ended d={display} />}
       </main>
@@ -293,7 +294,7 @@ function TopBar({ d }: { d: DisplayState }) {
   return (
     <header className="relative flex items-start justify-between gap-[2vw] px-[5vw] pt-[3.5vh] text-[clamp(1rem,1.5vw,2rem)]">
       <div className="text-cream-300">
-        {d.phase === 'round' || d.phase === 'category' ? (
+        {d.phase === 'round' || d.phase === 'category' || d.phase === 'showdown' ? (
           <span className="flex items-baseline gap-[0.4em]">
             Frage <span className="font-display text-[1.6em] leading-none font-extrabold text-cream-50 tabular-nums">{d.questionNumber}</span>
           </span>
@@ -660,43 +661,111 @@ function BlindsUp({ d }: { d: DisplayState }) {
   )
 }
 
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} Min.`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m === 0 ? `${h} Std.` : `${h} Std. ${m} Min.`
+}
+
+/** Nach der Lösung: Alle, die noch dabei sind, decken auf. */
+function Showdown({ d }: { d: DisplayState }) {
+  const a = d.answer
+  return (
+    <Center className="gap-[4vh]">
+      <div className="flex flex-col items-center gap-[1vh]">
+        <h1 className="font-display text-[clamp(2.6rem,6.5vw,8rem)] leading-none font-extrabold text-cream-50">Showdown</h1>
+        <p className="font-display text-[clamp(1.3rem,2.6vw,3.4rem)] text-gold-200 italic">Wer lag am nächsten?</p>
+      </div>
+      {a && (
+        <div className="playing-card animate-focus-in relative flex min-w-[min(40vw,48rem)] flex-col items-center gap-[1vh] px-[4vw] py-[4vh]">
+          <Icon name="spade" weight="fill" className="absolute top-[2vh] left-[1.5vw] size-[2vw] text-ink" />
+          <Icon name="spade" weight="fill" className="absolute right-[1.5vw] bottom-[2vh] size-[2vw] rotate-180 text-ink" />
+          <span className="font-display text-[clamp(2.6rem,7vw,9rem)] leading-none font-black text-ink tabular-nums">{a.display}</span>
+        </div>
+      )}
+      <p className="max-w-[70vw] text-[clamp(1rem,1.7vw,2.2rem)] leading-snug text-cream-200">{d.question?.text}</p>
+    </Center>
+  )
+}
+
 function Ended({ d }: { d: DisplayState }) {
   const played = Math.max(0, d.questionNumber - 1)
   const minutes = Math.max(1, Math.round((Date.now() - new Date(d.startedAt).getTime()) / 60000))
-  const duration = minutes >= 60 ? `${Math.floor(minutes / 60)} Std. ${minutes % 60} Min.` : `${minutes} Min.`
   const stats = [
     { value: String(played), label: played === 1 ? 'Frage gespielt' : 'Fragen gespielt' },
     { value: formatBlinds(d.blinds), label: 'Blinds zuletzt' },
-    { value: duration, label: 'am Tisch' },
+    { value: formatDuration(minutes), label: 'am Tisch' },
   ]
+  // Größte und kleinste Zahl des Abends hervorheben
+  const values = d.recap.map((r) => r.value).filter((v): v is number => v != null)
+  const max = values.length > 1 ? Math.max(...values) : null
+  const min = values.length > 1 ? Math.min(...values) : null
+  const n = d.recap.length
+  const box = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
+  useFitZoom(box, content, `${n}`)
+
   return (
-    <Center className="gap-[5vh]">
-      <div className="flex flex-col items-center gap-[2vh]">
-        <ChipMark className="size-[11vh] drop-shadow-[0_1.4vh_2.4vh_rgba(0,0,0,0.6)]" />
-        <h1 className="font-display text-[clamp(2.6rem,6vw,7.5rem)] leading-none font-extrabold text-cream-50">
-          Danke fürs <em className="font-normal text-gold-200 italic">Spielen!</em>
-        </h1>
-        <p className="text-[clamp(1rem,1.7vw,2.2rem)] text-cream-200">{d.gameName} in Zahlen</p>
+    <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center">
+      <div ref={content} className="flex flex-col items-center gap-[4vh] text-center">
+        <div className="flex items-center gap-[2vw]">
+          <ChipMark className="size-[9vh] drop-shadow-[0_1.4vh_2.4vh_rgba(0,0,0,0.6)]" />
+          <div className="flex flex-col items-start">
+            <h1 className="font-display text-[clamp(2.4rem,5.4vw,7rem)] leading-none font-extrabold text-cream-50">
+              Danke fürs <em className="font-normal text-gold-200 italic">Spielen!</em>
+            </h1>
+            <p className="mt-[1vh] text-[clamp(1rem,1.6vw,2rem)] text-cream-200">{d.gameName} in Zahlen</p>
+          </div>
+        </div>
+        <ul className="flex items-stretch justify-center gap-[2vw]">
+          {stats.map((st, i) => (
+            <li key={st.label} className="flex min-w-[min(16vw,20rem)] flex-col items-center gap-[0.6vh] rounded-[1vw] bg-felt-950/50 px-[1.6vw] py-[2vh] ring-1 ring-white/[0.07] animate-enter" style={{ animationDelay: `${200 + i * 120}ms` }}>
+              <span className="font-display text-[clamp(1.6rem,3vw,4rem)] leading-none font-black text-cream-50 tabular-nums">{st.value}</span>
+              <span className="text-[clamp(0.9rem,1.2vw,1.6rem)] text-cream-300">{st.label}</span>
+            </li>
+          ))}
+        </ul>
+        {n > 0 && (
+          // Alle Fragen des Abends als aufgefächerte Karten
+          <ol className="flex items-end justify-center pt-[3vh]" aria-label="Die Fragen des Abends">
+            {d.recap.map((r, i) => {
+              const mid = (n - 1) / 2
+              const rot = (i - mid) * Math.min(6, 40 / n)
+              const lift = Math.abs(i - mid) * Math.min(1.2, 8 / n)
+              const tag = r.value != null && r.value === max ? 'größte Zahl' : r.value != null && r.value === min ? 'kleinste Zahl' : null
+              return (
+                <li
+                  key={`${r.title}-${i}`}
+                  className="playing-card animate-deal relative flex aspect-[5/7] w-[clamp(8rem,13vw,16rem)] flex-col justify-between p-[1vw] text-left @container"
+                  style={
+                    {
+                      marginLeft: i === 0 ? 0 : `calc(-1 * clamp(2rem, ${Math.max(2, 5 - n * 0.2)}vw, 6rem))`,
+                      '--deal-x': `${(mid - i) * 6}vw`,
+                      '--deal-r': `${rot * 2}deg`,
+                      '--rest-r': `${rot}deg`,
+                      translate: `0 ${lift}vh`,
+                      transformOrigin: '50% 110%',
+                      animationDelay: `${600 + i * 110}ms`,
+                      zIndex: i,
+                    } as CSSProperties
+                  }
+                >
+                  {tag && (
+                    <span className="absolute -top-[3.2vh] left-1/2 -translate-x-1/2 rounded-full bg-gold-300 px-[0.8vw] py-[0.3vh] text-[clamp(0.65rem,0.85vw,1.1rem)] font-bold whitespace-nowrap text-felt-950">
+                      {tag}
+                    </span>
+                  )}
+                  <span lang="de" className="text-[9.5cqi] leading-snug font-semibold text-balance hyphens-auto text-ink-soft">
+                    {r.title}
+                  </span>
+                  <span className="font-display text-[11.5cqi] leading-[1.05] font-black text-balance break-words text-ink tabular-nums">{r.answer}</span>
+                </li>
+              )
+            })}
+          </ol>
+        )}
       </div>
-      <ul className="flex items-stretch justify-center gap-[2vw]">
-        {stats.map((st, i) => (
-          <li
-            key={st.label}
-            className="playing-card animate-deal flex min-w-[min(20vw,24rem)] flex-col items-center gap-[0.8vh] px-[2vw] py-[3vh]"
-            style={
-              {
-                '--deal-x': `${(1 - i) * 20}vw`,
-                '--deal-r': `${-12 + i * 8}deg`,
-                '--rest-r': `${(i - 1) * 1.2}deg`,
-                animationDelay: `${400 + i * 180}ms`,
-              } as CSSProperties
-            }
-          >
-            <span className="font-display text-[clamp(1.8rem,3.6vw,4.8rem)] leading-none font-black text-ink tabular-nums">{st.value}</span>
-            <span className="text-[clamp(0.95rem,1.3vw,1.7rem)] text-ink-soft">{st.label}</span>
-          </li>
-        ))}
-      </ul>
-    </Center>
+    </div>
   )
 }
