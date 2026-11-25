@@ -136,7 +136,7 @@ export function HoldButton({
         />
         <span className="relative flex flex-col items-center leading-tight">
           <span className="inline-flex items-center gap-2">{children}</span>
-          <span className="text-xs font-medium tracking-wide opacity-75">{locked ? 'Erledigt' : hint}</span>
+          {(hint || locked) && <span className="text-xs font-medium tracking-wide opacity-75">{locked ? 'Erledigt' : hint}</span>}
         </span>
       </button>
       <ConfirmDialog

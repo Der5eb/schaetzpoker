@@ -30,6 +30,24 @@ export function GameMaster() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [confirmDecided, setConfirmDecided] = useState(false)
+  // Die Erklärung „Halten oder tippen“ nur zeigen, bis einmal ausgelöst wurde
+  const [holdLearned, setHoldLearned] = useState(() => {
+    try {
+      return localStorage.getItem('schaetzpoker:hold-gelernt') === '1'
+    } catch {
+      return false
+    }
+  })
+  const learnHold = () => {
+    setHoldLearned(true)
+    try {
+      localStorage.setItem('schaetzpoker:hold-gelernt', '1')
+    } catch {
+      /* egal */
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -142,20 +160,13 @@ export function GameMaster() {
     navigate('/')
   }
 
-  const roundSteps: { label: string; icon: IconName }[] = [
-    { label: 'Frage', icon: 'cards' },
-    { label: 'Hinweis 1', icon: 'club' },
-    { label: 'Hinweis 2', icon: 'diamond' },
-    { label: 'Lösung', icon: 'spade' },
-  ]
-
   return (
     <Frame>
-      <header className="mb-6">
+      <header className="mb-5 flex flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="min-w-0 truncate font-display text-[1.6rem] leading-tight font-extrabold text-cream-50">{game.name}</h1>
+          <p className="min-w-0 truncate text-xs font-medium text-cream-400">{game.name}</p>
           <span
-            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
               tvOnline ? 'bg-ok/12 text-ok' : 'bg-danger/12 text-danger'
             }`}
           >
@@ -166,11 +177,18 @@ export function GameMaster() {
             {tvOnline ? 'TV verbunden' : 'TV offline'}
           </span>
         </div>
-        <dl className="mt-3 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl bg-felt-950/45 py-2.5 ring-1 ring-white/[0.05]">
-          <Stat label="Frage" value={s.phase === 'lobby' ? '–' : String(display.questionNumber)} />
-          <Stat label="Blinds" value={formatBlinds(info.current)} chip />
-          <Stat label="Erhöhung" value={s.phase === 'blinds' ? 'jetzt' : `in ${info.untilIncrease}`} />
-        </dl>
+        <p className="flex items-center gap-x-2 text-[0.95rem] whitespace-nowrap text-cream-200">
+          <span>
+            Frage <b className="font-display font-extrabold text-cream-50 tabular-nums">{s.phase === 'lobby' ? '–' : display.questionNumber}</b>
+          </span>
+          <span aria-hidden="true" className="text-cream-400">·</span>
+          <span className="flex items-center gap-1">
+            <ChipMark className="size-4" />
+            <b className="font-display font-extrabold text-cream-50 tabular-nums">{formatBlinds(info.current)}</b>
+          </span>
+          <span aria-hidden="true" className="text-cream-400">·</span>
+          <span>{s.phase === 'blinds' ? 'Erhöhung jetzt' : `Erhöhung in ${info.untilIncrease}`}</span>
+        </p>
       </header>
 
       {error && (
@@ -223,122 +241,143 @@ export function GameMaster() {
         />
       )}
 
-      {s.phase === 'round' && question && (
-        <div className="animate-enter flex flex-col gap-4 pb-48">
-          <div className="flex items-center justify-between gap-3">
-            <CategoryBadge category={categories.find((c) => c.id === question.category_id)} />
-            <span className="rounded-full bg-chip-red/90 px-2.5 py-1 text-xs font-semibold text-cream-50">
-              {s.decided ? 'Runde entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
-            </span>
-          </div>
-          {/* Fortschritt der Runde – eine schmale Zeile statt großer Karten */}
-          <ol className="grid grid-cols-4 gap-1 rounded-xl bg-felt-950/50 p-1 ring-1 ring-white/[0.05]" aria-label="Fortschritt der Runde">
-            {roundSteps.map((step, i) => {
-              const done = s.reveal > i
-              const current = s.reveal === i
-              return (
+      {s.phase === 'round' && question && (() => {
+        const items = [
+          { label: 'Frage', icon: 'cards' as IconName, text: question.question, media: question.question_media, keyFor: mediaKey.question },
+          { label: 'Hinweis 1', icon: 'club' as IconName, text: question.hint1, media: question.hint1_media, keyFor: (i: number) => mediaKey.hint(1, i) },
+          { label: 'Hinweis 2', icon: 'diamond' as IconName, text: question.hint2, media: question.hint2_media, keyFor: (i: number) => mediaKey.hint(2, i) },
+          {
+            label: 'Lösung',
+            icon: 'spade' as IconName,
+            text: question.explanation,
+            media: question.explanation_media,
+            keyFor: mediaKey.answer,
+            highlight: formatAnswer(question),
+          },
+        ]
+        const blockProps = (i: number) => ({
+          ...items[i],
+          focus: s.focus,
+          canZoom: (k: string) => isZoomable(k, s.reveal),
+          onZoom: toggleFocus,
+          onVideo: sendVideo,
+        })
+        const past = items.slice(0, s.reveal).map((_, i) => i)
+        const nextIdx = s.reveal < 3 ? s.reveal + 1 : null
+        const later = items.map((_, i) => i).filter((i) => i > s.reveal + 1)
+
+        return (
+          <div className="animate-enter flex flex-col gap-3 pb-40">
+            <div className="flex items-center justify-between gap-3">
+              <CategoryBadge category={categories.find((c) => c.id === question.category_id)} />
+              <span className="rounded-full bg-chip-red/90 px-2.5 py-1 text-xs font-semibold text-cream-50">
+                {s.decided ? 'Runde entschieden' : `Setzrunde ${Math.min(4, s.reveal + 1)}`}
+              </span>
+            </div>
+            <ol className="grid grid-cols-4 gap-1 rounded-xl bg-felt-950/50 p-1 ring-1 ring-white/[0.05]" aria-label="Fortschritt der Runde">
+              {items.map((step, i) => (
                 <li
                   key={step.label}
-                  aria-current={current ? 'step' : undefined}
+                  aria-current={s.reveal === i ? 'step' : undefined}
                   className={`flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold transition-colors duration-300 ${
-                    current ? 'bg-gold-300 text-felt-950' : done ? 'text-cream-100' : 'text-cream-400'
+                    s.reveal === i ? 'bg-gold-300 text-felt-950' : s.reveal > i ? 'text-cream-100' : 'text-cream-400'
                   }`}
                 >
                   <Icon name={step.icon} weight="fill" className="size-3.5 shrink-0" />
                   <span className="truncate">{step.label.replace('Hinweis ', 'H')}</span>
                 </li>
-              )
-            })}
-          </ol>
-          <h2 className="font-display text-[1.75rem] leading-tight font-extrabold text-cream-50">{question.title}</h2>
+              ))}
+            </ol>
+            <h2 className="mt-1 font-display text-2xl leading-tight font-extrabold text-cream-50">{question.title}</h2>
 
-          <Block label="Frage" icon="cards" shown focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} text={question.question} media={question.question_media} keyFor={mediaKey.question} onVideo={sendVideo} />
-          <Block label="Hinweis 1" icon="club" focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} shown={s.reveal >= 1} text={question.hint1} media={question.hint1_media} keyFor={(i) => mediaKey.hint(1, i)} onVideo={sendVideo} />
-          <Block label="Hinweis 2" icon="diamond" focus={s.focus} canZoom={(k) => isZoomable(k, s.reveal)} onZoom={toggleFocus} shown={s.reveal >= 2} text={question.hint2} media={question.hint2_media} keyFor={(i) => mediaKey.hint(2, i)} onVideo={sendVideo} />
-          <Block
-            label="Lösung"
-            icon="spade"
-            focus={s.focus}
-            canZoom={(k) => isZoomable(k, s.reveal)}
-            onZoom={toggleFocus}
-            shown={s.reveal >= 3}
-            highlight={formatAnswer(question)}
-            text={question.explanation}
-            media={question.explanation_media}
-            keyFor={mediaKey.answer}
-            onVideo={sendVideo}
-          />
-          {(question.notes || question.source) && (
-            <div className="rounded-2xl border border-dashed border-gold-400/30 bg-gold-400/[0.04] p-4 text-sm">
-              <p className="mb-1.5 flex items-center gap-1.5 font-semibold text-gold-200">
-                <Icon name="eyeOff" className="size-4" /> Nur für dich
-              </p>
-              {question.notes && <p className="leading-relaxed whitespace-pre-wrap text-cream-100">{question.notes}</p>}
-              {question.source && <p className="mt-2 break-words text-cream-400">Quelle: {question.source}</p>}
-            </div>
-          )}
+            {/* Bereits Gezeigtes: je eine Zeile, aufklappbar */}
+            {past.map((i) => (
+              <FoldRow key={items[i].label} icon={items[i].icon} label={items[i].label} summary={items[i].text}>
+                <Block shown variant="bare" {...blockProps(i)} />
+              </FoldRow>
+            ))}
 
-          <ActionBar>
-            <p className="flex items-center justify-center gap-1.5 text-center text-xs font-medium text-cream-300">
-              {!tvOnline ? (
-                <span className="text-danger">TV offline – er holt den Stand nach, sobald er verbunden ist</span>
-              ) : s.reveal < 3 ? (
-                <>
-                  <Icon name="tv" className="size-3.5 text-gold-300" /> Als Nächstes am TV: <span className="text-cream-50">{NEXT_LABELS[s.reveal]}</span>
-                </>
-              ) : (
-                <>
-                  <Icon name="tv" className="size-3.5 text-gold-300" /> Als Nächstes am TV: <span className="text-cream-50">Showdown</span>
-                </>
+            {/* Gerade am TV */}
+            <Block shown variant="now" {...blockProps(s.reveal)} />
+
+            {/* Als Nächstes */}
+            {nextIdx != null && <Block shown={false} variant="next" {...blockProps(nextIdx)} />}
+
+            {/* Später: verdeckt, aufklappbar */}
+            {later.map((i) => (
+              <FoldRow key={items[i].label} icon={items[i].icon} label={items[i].label} summary="verdeckt" muted>
+                <Block shown={false} variant="bare" {...blockProps(i)} />
+              </FoldRow>
+            ))}
+
+            {(question.notes || question.source) && (
+              <FoldRow icon="pencil" label="Notizen" summary="nur für dich" muted>
+                {question.notes && <p className="text-sm leading-relaxed whitespace-pre-wrap text-cream-100">{question.notes}</p>}
+                {question.source && <p className="mt-2 text-sm break-words text-cream-400">Quelle: {question.source}</p>}
+              </FoldRow>
+            )}
+
+            <ActionBar>
+              {!tvOnline && (
+                <p role="status" className="text-center text-xs font-medium text-danger">
+                  TV offline – er holt den Stand nach, sobald er verbunden ist
+                </p>
               )}
-            </p>
-            <HoldButton
-              className="btn btn-primary w-full py-3 text-lg"
-              disabled={busy}
-              confirmTitle={s.reveal < 3 ? `${NEXT_LABELS[s.reveal][0].toUpperCase()}${NEXT_LABELS[s.reveal].slice(1)} aufdecken?` : 'Runde beenden?'}
-              confirmLabel={s.reveal < 3 ? 'Aufdecken' : 'Runde beenden'}
-              confirmBody={s.reveal < 3 ? 'Der ganze Tisch sieht es sofort am TV.' : 'Die Frage wird als gespielt markiert.'}
-              onConfirm={() => (s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound())}
-            >
-              <Icon name={s.reveal < 3 ? 'eye' : 'flag'} weight="duotone" className="size-6" />
-              {s.reveal < 3 ? REVEAL_LABELS[s.reveal] : 'Runde beenden'}
-            </HoldButton>
-            <div className="flex gap-2">
-              {s.reveal > 0 && (
+              <div className="flex items-stretch gap-2">
                 <button
                   type="button"
-                  className="btn btn-ghost min-h-11 flex-1 py-2.5 text-sm"
-                  onClick={() => setState({ reveal: s.reveal - 1, decided: false })}
+                  className="btn btn-ghost w-14 shrink-0 p-0"
+                  aria-label="Weitere Aktionen"
+                  aria-haspopup="dialog"
+                  onClick={() => setMoreOpen(true)}
                 >
-                  <Icon name="eyeOff" className="size-4" /> Wieder verdecken
+                  <Icon name="more" weight="bold" className="size-6" />
                 </button>
-              )}
-              {s.reveal === 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost min-h-11 flex-1 py-2.5 text-sm"
-                  onClick={() => setState({ phase: 'category', questionId: null })}
-                >
-                  <Icon name="shuffle" className="size-4" /> Andere Frage
-                </button>
-              )}
-              {s.reveal < 3 && (
                 <HoldButton
-                  className="btn btn-ghost flex-1 py-1.5 text-sm"
-                  fill="rgb(209 164 70 / 0.3)"
-                  hint="halten oder tippen"
-                  confirmTitle="Lösung sofort zeigen?"
-                  confirmLabel="Lösung zeigen"
-                  confirmBody="Nur noch ein Spieler ist dabei – die übrigen Hinweise werden übersprungen."
-                  onConfirm={() => setState({ reveal: 3, decided: true })}
+                  className="btn btn-primary min-h-14 flex-1 py-2.5 text-lg"
+                  disabled={busy}
+                  hint={holdLearned ? '' : 'Halten · oder tippen und bestätigen'}
+                  confirmTitle={s.reveal < 3 ? `${NEXT_LABELS[s.reveal][0].toUpperCase()}${NEXT_LABELS[s.reveal].slice(1)} aufdecken?` : 'Runde beenden?'}
+                  confirmLabel={s.reveal < 3 ? 'Aufdecken' : 'Runde beenden'}
+                  confirmBody={s.reveal < 3 ? 'Der ganze Tisch sieht es sofort am TV.' : 'Danach folgt der Showdown am TV.'}
+                  onConfirm={() => {
+                    learnHold()
+                    return s.reveal < 3 ? setState({ reveal: s.reveal + 1 }) : endRound()
+                  }}
                 >
-                  <Icon name="crown" className="size-4" /> Nur 1 Spieler übrig
+                  <Icon name={s.reveal < 3 ? 'eye' : 'flag'} weight="duotone" className="size-6" />
+                  {s.reveal < 3 ? REVEAL_LABELS[s.reveal] : 'Runde beenden'}
                 </HoldButton>
-              )}
-            </div>
-          </ActionBar>
-        </div>
-      )}
+              </div>
+            </ActionBar>
+
+            <MoreSheet
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              options={[
+                ...(s.reveal > 0
+                  ? [{ icon: 'eyeOff' as IconName, label: `${items[s.reveal].label} wieder verdecken`, onSelect: () => setState({ reveal: s.reveal - 1, decided: false }) }]
+                  : [{ icon: 'shuffle' as IconName, label: 'Andere Frage wählen', onSelect: () => setState({ phase: 'category', questionId: null }) }]),
+                ...(s.reveal < 3
+                  ? [{ icon: 'crown' as IconName, label: 'Nur 1 Spieler übrig – Lösung zeigen', onSelect: () => setConfirmDecided(true) }]
+                  : []),
+              ]}
+            />
+            <ConfirmDialog
+              open={confirmDecided}
+              title="Lösung sofort zeigen?"
+              confirmLabel="Lösung zeigen"
+              onCancel={() => setConfirmDecided(false)}
+              onConfirm={() => {
+                setConfirmDecided(false)
+                setState({ reveal: 3, decided: true })
+              }}
+            >
+              Nur noch ein Spieler ist dabei – die übrigen Hinweise werden übersprungen.
+            </ConfirmDialog>
+          </div>
+        )
+      })()}
 
       {s.phase === 'round' && !question && (
         <div className="flex flex-col gap-3">
@@ -419,18 +458,6 @@ function Frame({ children }: { children: ReactNode }) {
   )
 }
 
-function Stat({ label, value, chip }: { label: string; value: string; chip?: boolean }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 px-2">
-      <dt className="text-[0.7rem] font-medium text-cream-400">{label}</dt>
-      <dd className="flex items-center gap-1.5 font-display text-lg leading-tight font-extrabold text-cream-50 tabular-nums">
-        {chip && <ChipMark className="size-4" />}
-        {value}
-      </dd>
-    </div>
-  )
-}
-
 /**
  * Blinds während des Abends ändern: erst lokal bearbeiten, dann „Übernehmen“.
  * So landet nie ein halb getippter Wert (z. B. 0) am TV, und Stufenwechsel sind angekündigt.
@@ -490,6 +517,73 @@ function BlindSettings({ game, onApply }: { game: Game; onApply: (levels: BlindL
         </div>
       )}
     </div>
+  )
+}
+
+/** Kompakte, aufklappbare Zeile (für Gezeigtes, Späteres und Notizen) */
+function FoldRow({ icon, label, summary, muted, children }: { icon: IconName; label: string; summary: string; muted?: boolean; children: ReactNode }) {
+  return (
+    <details className="group rounded-2xl border border-white/[0.06] bg-felt-950/30">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2.5 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
+        <Icon name={icon} weight="fill" className="size-3.5 shrink-0 text-gold-300" />
+        <span className="shrink-0 text-xs font-semibold text-cream-200">{label}</span>
+        <span className={`min-w-0 flex-1 truncate text-sm ${muted ? 'text-cream-400' : 'text-cream-300'}`}>{summary}</span>
+        <Icon name="down" className="size-4 shrink-0 text-cream-400 transition-transform duration-300 group-open:rotate-180" />
+      </summary>
+      <div className="px-4 pt-1 pb-4">{children}</div>
+    </details>
+  )
+}
+
+/** Blatt mit selten gebrauchten Aktionen (fährt von unten herein) */
+function MoreSheet({
+  open,
+  onClose,
+  options,
+}: {
+  open: boolean
+  onClose: () => void
+  options: { icon: IconName; label: string; onSelect: () => void }[]
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = ref.current
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    if (!open && d.open) d.close()
+  }, [open])
+  return (
+    <dialog
+      ref={ref}
+      aria-label="Weitere Aktionen"
+      onCancel={(e) => {
+        e.preventDefault()
+        onClose()
+      }}
+      onClick={(e) => e.target === ref.current && onClose()}
+      className="mx-auto mt-auto mb-0 w-full max-w-xl rounded-t-3xl border border-white/10 bg-felt-850 p-0 text-cream-100 shadow-[0_-20px_60px_-20px_rgb(0_0_0/0.9)] backdrop:bg-felt-950/70 open:animate-[enter_0.3s_var(--ease-out-expo)]"
+    >
+      <div className="flex flex-col gap-1.5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <span aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-white/20" />
+        {options.map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            className="flex min-h-14 items-center gap-3 rounded-2xl px-4 text-left font-medium transition-colors hover:bg-white/5"
+            onClick={() => {
+              onClose()
+              o.onSelect()
+            }}
+          >
+            <Icon name={o.icon} weight="duotone" className="size-6 text-gold-300" />
+            {o.label}
+          </button>
+        ))}
+        <button type="button" className="btn btn-ghost mt-1 min-h-12" onClick={onClose}>
+          Schließen
+        </button>
+      </div>
+    </dialog>
   )
 }
 
@@ -673,6 +767,7 @@ function Block({
   focus,
   canZoom,
   onZoom,
+  variant = 'now',
 }: {
   label: string
   icon: IconName
@@ -685,22 +780,37 @@ function Block({
   focus: string | null
   canZoom: (key: string) => boolean
   onZoom: (key: string) => void
+  /** now = gerade am TV (hervorgehoben), next = als Nächstes, bare = ohne eigenen Rahmen (in Kompaktzeile) */
+  variant?: 'now' | 'next' | 'bare'
 }) {
+  const framed = variant !== 'bare'
   return (
     <section
-      className={`rounded-2xl border p-4 transition-colors duration-500 ${
-        shown ? 'border-gold-400/45 bg-felt-800/80 shadow-[var(--shadow-lift)]' : 'border-white/[0.06] bg-felt-950/35'
-      }`}
+      className={
+        variant === 'now'
+          ? 'rounded-2xl border border-gold-400/50 bg-felt-800/85 p-4 shadow-[var(--shadow-lift)]'
+          : variant === 'next'
+            ? 'rounded-2xl border border-white/[0.07] bg-felt-950/35 p-4'
+            : ''
+      }
     >
-      <div className="mb-2 flex items-center justify-between text-xs font-semibold">
-        <span className="flex items-center gap-1.5 text-cream-300">
-          <Icon name={icon} weight="fill" className="size-3.5 text-gold-300" /> {label}
-        </span>
-        <span className={`flex items-center gap-1 ${shown ? 'text-gold-200' : 'text-cream-400'}`}>
-          <Icon name={shown ? 'eye' : 'eyeOff'} className="size-3.5" />
-          {shown ? 'am TV' : 'verdeckt'}
-        </span>
-      </div>
+      {framed && (
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold">
+          <Icon name={icon} weight="fill" className="size-3.5 text-gold-300" />
+          <span className="text-cream-200">{label}</span>
+          {variant === 'now' ? (
+            <span className="ml-auto flex items-center gap-1.5 text-gold-200">
+              <span className="relative flex size-1.5">
+                <span className="animate-pulse-dot absolute inset-0 rounded-full bg-gold-300" />
+                <span className="relative size-1.5 rounded-full bg-gold-300" />
+              </span>
+              gerade am TV
+            </span>
+          ) : (
+            <span className="ml-auto text-cream-400">als Nächstes</span>
+          )}
+        </div>
+      )}
       <Peek hidden={!shown}>
       {highlight && <p className="font-display text-4xl font-extrabold text-gold-200 tabular-nums">{highlight}</p>}
       {text && <p className="leading-relaxed whitespace-pre-wrap text-cream-50">{text}</p>}
