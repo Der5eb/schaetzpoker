@@ -7,15 +7,16 @@ import { Icon, type IconName } from '../components/Icon'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HoldButton } from '../components/HoldButton'
 import { Peek } from '../components/Peek'
+import { PlayerPicker } from '../components/PlayerPicker'
 import { ActionBar, Fixed } from '../components/Shell'
 import { blindInfo, formatBlinds, validateLevels } from '../game/blinds'
-import { availableQuestions, buildDisplay, isZoomable, mediaKey } from '../game/display'
+import { availableQuestions, buildDisplay, isZoomable, mediaKey, type Audience } from '../game/display'
 import { normalizeRoomCode, useGmRoom } from '../game/room'
 import type { GameState, VideoCommand } from '../game/types'
-import { fetchCategories, fetchGame, fetchQuestions, markPlayed, updateGame } from '../lib/data'
+import { fetchCategories, fetchGame, fetchPlayers, fetchPlayHistory, fetchQuestions, markPlayed, updateGame } from '../lib/data'
 import { formatAnswer, formatTime } from '../lib/format'
 import { mediaUrl } from '../lib/media'
-import type { BlindLevel, Category, Game, Media, Question } from '../lib/types'
+import type { BlindLevel, Category, Game, Media, Player, PlayRecord, Question } from '../lib/types'
 import { youTubeThumbnail } from '../lib/youtube'
 
 const REVEAL_LABELS = ['Hinweis 1 aufdecken', 'Hinweis 2 aufdecken', 'Lösung aufdecken']
@@ -27,6 +28,9 @@ export function GameMaster() {
   const [game, setGame] = useState<Game | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
+  const [history, setHistory] = useState<PlayRecord[]>([])
+  // null = Datenbank-Update 002 fehlt
+  const [players, setPlayers] = useState<Player[] | null>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
@@ -58,13 +62,20 @@ export function GameMaster() {
         setQuestions(qs)
       })
       .catch(() => setError('Spielabend konnte nicht geladen werden.'))
+    fetchPlayHistory().then(setHistory).catch(() => {})
+    fetchPlayers().then(setPlayers).catch(() => setPlayers(null))
   }, [id])
+
+  const audience = useMemo<Audience | undefined>(
+    () => (game ? { playerIds: game.player_ids ?? [], history, game } : undefined),
+    [game, history],
+  )
 
   useWakeLock()
 
   const display = useMemo(
-    () => (game ? buildDisplay(game, game.state, categories, questions) : null),
-    [game, categories, questions],
+    () => (game ? buildDisplay(game, game.state, categories, questions, audience) : null),
+    [game, categories, questions, audience],
   )
 
   const { tvOnline, sendVideo } = useGmRoom(game?.room_code ?? null, display)
@@ -127,14 +138,15 @@ export function GameMaster() {
   const s = game.state
   const info = blindInfo(game.blind_levels, game.questions_per_level, s.completed)
   const question = questions.find((q) => q.id === s.questionId)
-  const available = availableQuestions(questions)
+  const available = availableQuestions(questions, audience)
 
   async function endRound() {
     if (!game || !question) return
     setBusy(true)
     try {
-      const playedAt = await markPlayed(game.id, question.id, s.completed + 1)
-      setQuestions((qs) => qs.map((q) => (q.id === question.id ? { ...q, played_at: playedAt } : q)))
+      const record = await markPlayed(game.id, question.id, s.completed + 1, game.player_ids ?? [])
+      setQuestions((qs) => qs.map((q) => (q.id === question.id ? { ...q, played_at: record.played_at } : q)))
+      setHistory((h) => [...h.filter((r) => !(r.game_id === record.game_id && r.question_id === record.question_id)), record])
       // Erst der Showdown am TV – die nächste Runde startet mit „Weiter“
       await setState({ phase: 'showdown', reveal: 3 })
     } catch (e) {
@@ -433,6 +445,21 @@ export function GameMaster() {
 
       {s.phase !== 'round' && s.phase !== 'ended' && (
         <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && s.categoryId ? 'pb-44' : ''}`}>
+          {players && (
+            <Collapsible title={game.player_ids?.length ? `Spieler (${game.player_ids.length})` : 'Spieler'} icon="users">
+              <div className="flex flex-col gap-3">
+                <p className="text-sm leading-relaxed text-cream-300">
+                  Jemand kommt dazu oder geht? Gilt ab der nächsten Frage – angeboten werden nur Fragen, die für alle am Tisch neu sind.
+                </p>
+                <PlayerPicker
+                  players={players}
+                  selected={(game.player_ids ?? []).filter((pid) => players.some((p) => p.id === pid))}
+                  onChange={(ids) => save({ player_ids: ids })}
+                  onPlayersChange={setPlayers}
+                />
+              </div>
+            </Collapsible>
+          )}
           <Collapsible title="Blinds anpassen" icon="stack">
             <BlindSettings game={game} onApply={(levels, perLevel) => save({ blind_levels: levels, questions_per_level: perLevel })} />
           </Collapsible>

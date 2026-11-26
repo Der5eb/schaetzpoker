@@ -56,4 +56,21 @@ export interface Game {
   state: GameState
   started_at: string
   finished_at: string | null
+  /** Wer gerade am Tisch sitzt (fehlt, solange Datenbank-Update 002 nicht eingespielt ist) */
+  player_ids?: string[]
+}
+
+export interface Player {
+  id: string
+  owner_id: string
+  name: string
+  created_at: string
+}
+
+/** Eine an einem Abend gespielte Frage – und wer dabei war (leer = unbekannt). */
+export interface PlayRecord {
+  game_id: string
+  question_id: string
+  played_at: string
+  player_ids: string[]
 }

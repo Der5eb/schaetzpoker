@@ -10,6 +10,7 @@ import {
   ensureCategory,
   fetchCategories,
   fetchQuestion,
+  forgetPlays,
   missingForReady,
   suggestMeta,
   toInput,
@@ -171,6 +172,8 @@ export function QuestionEditor() {
 
     try {
       const saved = isNew ? await createQuestion(next) : await updateQuestion(id, next)
+      // „Wieder freigeben“: auch vergessen, welche Spieler sie schon kennen
+      if (original?.played_at && !saved.played_at) await forgetPlays(saved.id).catch((e) => console.error(e))
       await deleteMediaFiles(removedImages.current)
       removedImages.current = []
       if (isNew) {

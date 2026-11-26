@@ -1,11 +1,43 @@
 import { formatAnswer } from '../lib/format'
-import type { Category, Game, Question } from '../lib/types'
+import type { Category, Game, PlayRecord, Question } from '../lib/types'
 import { blindInfo, levelAt } from './blinds'
 import type { DisplayState, GameState } from './types'
 
-/** Fragen, die am Spielabend noch auswählbar sind. */
-export function availableQuestions(questions: Question[]): Question[] {
-  return questions.filter((q) => q.status === 'ready' && !q.played_at)
+/** Wer am Tisch sitzt und wer welche Frage schon kennt. */
+export interface Audience {
+  playerIds: string[]
+  history: PlayRecord[]
+  /** Laufender Abend: was dort schon gespielt wurde, kommt nicht noch einmal */
+  game?: Pick<Game, 'id' | 'started_at'>
+}
+
+/**
+ * Fragen, die am Spielabend noch auswählbar sind.
+ * Ohne Spieler: nur Fragen, die noch nie gespielt wurden.
+ * Mit Spielern: alle Fragen, die keiner am Tisch kennt. War bei einem früheren
+ * Abend unbekannt, wer dabei war, gilt die Frage vorsichtshalber als bekannt.
+ */
+export function availableQuestions(questions: Question[], audience?: Audience): Question[] {
+  const ready = questions.filter((q) => q.status === 'ready')
+  const game = audience?.game
+  const history = audience?.history ?? []
+  const playedTonight = (q: Question) =>
+    !!game && ((!!q.played_at && q.played_at >= game.started_at) || history.some((r) => r.game_id === game.id && r.question_id === q.id))
+
+  if (!audience || audience.playerIds.length === 0) return ready.filter((q) => !q.played_at && !playedTonight(q))
+
+  const atTable = new Set(audience.playerIds)
+  const byQuestion = new Map<string, PlayRecord[]>()
+  for (const r of history) byQuestion.set(r.question_id, [...(byQuestion.get(r.question_id) ?? []), r])
+
+  return ready.filter((q) => {
+    if (playedTonight(q)) return false
+    // „Wieder freigeben“ im Editor setzt played_at zurück – dann ist sie für alle neu
+    if (!q.played_at) return true
+    const plays = byQuestion.get(q.id) ?? []
+    if (plays.length === 0) return false
+    return plays.every((r) => r.player_ids.length > 0 && !r.player_ids.some((p) => atTable.has(p)))
+  })
 }
 
 /** Baut aus dem vollständigen Spielstand das, was der TV sehen darf. */
@@ -14,9 +46,10 @@ export function buildDisplay(
   state: GameState,
   categories: Category[],
   questions: Question[],
+  audience?: Audience,
 ): DisplayState {
   const info = blindInfo(game.blind_levels, game.questions_per_level, state.completed)
-  const available = availableQuestions(questions)
+  const available = availableQuestions(questions, audience)
   const counts = new Map<string, number>()
   for (const q of available) if (q.category_id) counts.set(q.category_id, (counts.get(q.category_id) ?? 0) + 1)
 

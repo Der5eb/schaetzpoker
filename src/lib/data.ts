@@ -1,7 +1,7 @@
 import { deleteMediaFiles } from './media'
 import { supabase } from './supabase'
 import { initialState } from '../game/types'
-import type { Category, Game, Media, Question } from './types'
+import type { Category, Game, Media, Player, PlayRecord, Question } from './types'
 
 function db() {
   if (!supabase) throw new Error('Supabase nicht konfiguriert')
@@ -144,10 +144,14 @@ export function missingForReady(q: QuestionInput): string[] {
 // Spielabende
 // ---------------------------------------------------------------------------
 
-export async function createGame(input: Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level'>): Promise<Game> {
+export async function createGame(
+  input: Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level'> & { player_ids: string[] },
+): Promise<Game> {
+  // Ohne Spieler die Spalte weglassen – so klappt es auch ohne Datenbank-Update 002
+  const { player_ids, ...rest } = input
   const { data, error } = await db()
     .from('games')
-    .insert({ ...input, state: initialState })
+    .insert({ ...rest, ...(player_ids.length ? { player_ids } : {}), state: initialState })
     .select()
     .single()
   if (error) throw error
@@ -158,6 +162,13 @@ export async function fetchGame(id: string): Promise<Game> {
   const { data, error } = await db().from('games').select('*').eq('id', id).single()
   if (error) throw error
   return { ...(data as Game), state: { ...initialState, ...(data as Game).state } }
+}
+
+/** Spieler des zuletzt gestarteten Abends (als Vorauswahl für den nächsten). */
+export async function fetchLastPlayerIds(): Promise<string[]> {
+  const { data, error } = await db().from('games').select('*').order('started_at', { ascending: false }).limit(1)
+  if (error) throw error
+  return (data?.[0] as Game | undefined)?.player_ids ?? []
 }
 
 /** Zuletzt gestarteter, noch nicht beendeter Spielabend. */
@@ -174,19 +185,67 @@ export async function fetchOpenGame(): Promise<Game | null> {
 
 export async function updateGame(
   id: string,
-  patch: Partial<Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level' | 'state' | 'finished_at'>>,
+  patch: Partial<Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level' | 'state' | 'finished_at' | 'player_ids'>>,
 ): Promise<void> {
   const { error } = await db().from('games').update(patch).eq('id', id)
   if (error) throw error
 }
 
-/** Frage als gespielt markieren und dem Abend zuordnen. */
-export async function markPlayed(gameId: string, questionId: string, position: number): Promise<string> {
+/** Frage als gespielt markieren und dem Abend zuordnen – mit allen, die gerade am Tisch sitzen. */
+export async function markPlayed(gameId: string, questionId: string, position: number, playerIds: string[]): Promise<PlayRecord> {
   const playedAt = new Date().toISOString()
   const { error } = await db().from('questions').update({ played_at: playedAt }).eq('id', questionId)
   if (error) throw error
-  await db().from('game_questions').upsert({ game_id: gameId, question_id: questionId, position, played_at: playedAt })
-  return playedAt
+  const row: Record<string, unknown> = { game_id: gameId, question_id: questionId, position, played_at: playedAt }
+  const { error: withPlayers } = await db()
+    .from('game_questions')
+    .upsert(playerIds.length ? { ...row, player_ids: playerIds } : row)
+  if (withPlayers) {
+    // Ohne Spielerliste speichern: Die Frage gilt dann für alle als gespielt – lieber zu vorsichtig.
+    console.error(withPlayers)
+    if (playerIds.length) await db().from('game_questions').upsert(row)
+    return { game_id: gameId, question_id: questionId, played_at: playedAt, player_ids: [] }
+  }
+  return { game_id: gameId, question_id: questionId, played_at: playedAt, player_ids: playerIds }
+}
+
+/** Alle bisher gespielten Fragen mit den Spielern, die dabei waren. */
+export async function fetchPlayHistory(): Promise<PlayRecord[]> {
+  const { data, error } = await db().from('game_questions').select('*')
+  if (error) throw error
+  return (data as (Omit<PlayRecord, 'player_ids'> & { player_ids?: string[] | null })[]).map((r) => ({
+    game_id: r.game_id,
+    question_id: r.question_id,
+    played_at: r.played_at,
+    player_ids: r.player_ids ?? [],
+  }))
+}
+
+/** „Wieder freigeben“: vergisst, wer die Frage schon kennt. */
+export async function forgetPlays(questionId: string): Promise<void> {
+  const { error } = await db().from('game_questions').delete().eq('question_id', questionId)
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// Spieler
+// ---------------------------------------------------------------------------
+
+export async function fetchPlayers(): Promise<Player[]> {
+  const { data, error } = await db().from('players').select('*')
+  if (error) throw error
+  return (data as Player[]).sort((a, b) => a.name.localeCompare(b.name, 'de'))
+}
+
+export async function createPlayer(name: string): Promise<Player> {
+  const { data, error } = await db().from('players').insert({ name: name.trim() }).select().single()
+  if (error) throw error
+  return data as Player
+}
+
+export async function deletePlayer(id: string): Promise<void> {
+  const { error } = await db().from('players').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ---------------------------------------------------------------------------

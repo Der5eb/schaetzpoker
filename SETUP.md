@@ -74,3 +74,13 @@ die Eingaben zur Verbesserung seiner Modelle verwenden.
 Die Adresse im Handy-Browser öffnen →
 - **iPhone (Safari):** Teilen → *Zum Home-Bildschirm*
 - **Android (Chrome):** Menü → *App installieren*
+
+## 6. Datenbank-Updates
+
+Neue Funktionen brauchen manchmal eine Ergänzung der Datenbank. Wer `schema.sql` **vor** einem Update eingespielt hat,
+führt die Datei einmalig aus: **SQL Editor → New query** → Inhalt einfügen → **Run**.
+
+| Datei | Wofür |
+|---|---|
+| [`supabase/updates/001-media-read-policy.sql`](supabase/updates/001-media-read-policy.sql) | Gelöschte Bilder werden auch wirklich entfernt |
+| [`supabase/updates/002-players.sql`](supabase/updates/002-players.sql) | Spieler pro Abend: nur Fragen, die alle am Tisch noch nicht kennen |

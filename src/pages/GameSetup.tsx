@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
+import { PlayerPicker } from '../components/PlayerPicker'
 import { ActionBar, SectionTitle, Shell } from '../components/Shell'
 import { defaultLevels, validateLevels } from '../game/blinds'
 import { availableQuestions } from '../game/display'
 import { newRoomCode, normalizeRoomCode } from '../game/room'
-import { createGame, fetchOpenGame, fetchQuestions, updateGame } from '../lib/data'
-import type { BlindLevel, Game } from '../lib/types'
+import { createGame, fetchLastPlayerIds, fetchOpenGame, fetchPlayers, fetchPlayHistory, fetchQuestions, updateGame } from '../lib/data'
+import type { BlindLevel, Game, Player, PlayRecord, Question } from '../lib/types'
 
 function tvUrl(): string {
   return `${location.origin}${location.pathname}#/tv`
@@ -18,7 +19,11 @@ export function GameSetup() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [openGame, setOpenGame] = useState<Game | null>(null)
-  const [stats, setStats] = useState<{ questions: number; categories: number } | null>(null)
+  const [questions, setQuestions] = useState<Question[] | null>(null)
+  const [history, setHistory] = useState<PlayRecord[]>([])
+  // null = Spieler noch nicht geladen, 'missing' = Datenbank-Update 002 fehlt
+  const [players, setPlayers] = useState<Player[] | null | 'missing'>(null)
+  const [selected, setSelected] = useState<string[]>([])
   const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(params.get('raum') ?? ''))
   const [name, setName] = useState(() => `Spielabend ${new Date().toLocaleDateString('de-DE')}`)
   const [levels, setLevels] = useState<BlindLevel[]>(() => defaultLevels(10, 20, 6))
@@ -29,13 +34,23 @@ export function GameSetup() {
 
   useEffect(() => {
     fetchOpenGame().then(setOpenGame).catch(() => {})
-    fetchQuestions()
-      .then((qs) => {
-        const av = availableQuestions(qs)
-        setStats({ questions: av.length, categories: new Set(av.map((q) => q.category_id).filter(Boolean)).size })
+    fetchQuestions().then(setQuestions).catch(() => {})
+    fetchPlayHistory().then(setHistory).catch(() => {})
+    Promise.all([fetchPlayers(), fetchLastPlayerIds().catch(() => [] as string[])])
+      .then(([ps, last]) => {
+        setPlayers(ps)
+        // Vorauswahl: wer beim letzten Abend dabei war
+        setSelected(last.filter((id) => ps.some((p) => p.id === id)))
       })
-      .catch(() => {})
+      .catch(() => setPlayers('missing'))
   }, [])
+
+  const playerIds = useMemo(() => (Array.isArray(players) ? selected : []), [players, selected])
+  const stats = useMemo(() => {
+    if (!questions) return null
+    const av = availableQuestions(questions, { playerIds, history })
+    return { questions: av.length, categories: new Set(av.map((q) => q.category_id).filter(Boolean)).size }
+  }, [questions, history, playerIds])
 
   async function resume(game: Game) {
     // Neuer TV-Code aus dem QR-Code? Dann den laufenden Abend dorthin verbinden.
@@ -60,6 +75,7 @@ export function GameSetup() {
         name: name.trim() || 'Spielabend',
         blind_levels: levels,
         questions_per_level: perLevel,
+        player_ids: playerIds,
       })
       navigate(`/leitung/${game.id}`)
     } catch (e) {
@@ -115,6 +131,25 @@ export function GameSetup() {
         </section>
 
         <section className="flex flex-col gap-3">
+          <SectionTitle hint={playerIds.length > 0 ? `${playerIds.length} am Tisch` : undefined}>Wer spielt mit?</SectionTitle>
+          {players === 'missing' ? (
+            <p className="text-sm leading-relaxed text-cream-400">
+              Für Spieler fehlt noch ein Datenbank-Update: <span className="text-cream-200">supabase/updates/002-players.sql</span> einmal im
+              Supabase SQL Editor ausführen.
+            </p>
+          ) : (
+            players && (
+              <>
+                <p className="text-sm leading-relaxed text-cream-300">
+                  Die App merkt sich, wer welche Frage schon kennt, und bietet nur Fragen an, die für alle am Tisch neu sind.
+                </p>
+                <PlayerPicker players={players} selected={selected} onChange={setSelected} onPlayersChange={setPlayers} />
+              </>
+            )
+          )}
+        </section>
+
+        <section className="flex flex-col gap-3">
           <SectionTitle>Name des Abends</SectionTitle>
           <input className="field" aria-label="Name des Abends" value={name} onChange={(e) => setName(e.target.value)} />
         </section>
@@ -144,8 +179,11 @@ export function GameSetup() {
           >
             <Icon name="cards" weight="duotone" className="mt-px size-5 shrink-0" />
             <span>
-              {stats.questions} spielbereite {stats.questions === 1 ? 'Frage' : 'Fragen'} in {stats.categories}{' '}
-              {stats.categories === 1 ? 'Kategorie' : 'Kategorien'}.
+              {stats.questions} {stats.questions === 1 ? 'Frage' : 'Fragen'} in {stats.categories}{' '}
+              {stats.categories === 1 ? 'Kategorie' : 'Kategorien'}{' '}
+              {playerIds.length > 0
+                ? `${stats.questions === 1 ? 'ist' : 'sind'} neu für ${playerIds.length === 1 ? 'diesen Spieler' : `alle ${playerIds.length}`}`
+                : 'noch nie gespielt'}.
               {stats.questions < 10 && ' Für einen Abend werden etwa 10 gebraucht.'}
             </span>
           </p>

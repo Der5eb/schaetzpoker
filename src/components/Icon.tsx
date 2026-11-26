@@ -31,6 +31,7 @@ import {
   Tag,
   Television,
   Trash,
+  UsersThree,
   X,
   YoutubeLogo,
   type Icon as PhosphorIcon,
@@ -74,6 +75,7 @@ const icons = {
   club: Club,
   diamond: Diamond,
   spade: Spade,
+  users: UsersThree,
 } satisfies Record<string, PhosphorIcon>
 
 export type IconName = keyof typeof icons

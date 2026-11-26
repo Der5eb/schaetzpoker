@@ -80,7 +80,9 @@ create table public.games (
   current_level        int  not null default 0,
   state                jsonb not null default '{}',
   started_at           timestamptz not null default now(),
-  finished_at          timestamptz
+  finished_at          timestamptz,
+  -- Wer gerade am Tisch sitzt (kann sich während des Abends ändern)
+  player_ids           uuid[] not null default '{}'
 );
 
 -- Welche Fragen an einem Abend gespielt wurden (in Reihenfolge)
@@ -89,7 +91,18 @@ create table public.game_questions (
   question_id  uuid not null references public.questions (id) on delete cascade,
   position     int  not null,
   played_at    timestamptz not null default now(),
+  -- Wer bei dieser Frage dabei war. Leer = unbekannt (gilt dann für alle als gespielt).
+  player_ids   uuid[] not null default '{}',
   primary key (game_id, question_id)
+);
+
+-- Spieler (nur Namen – für "Wer kennt welche Frage schon?")
+create table public.players (
+  id          uuid primary key default gen_random_uuid(),
+  owner_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name        text not null check (length(trim(name)) > 0),
+  created_at  timestamptz not null default now(),
+  unique (owner_id, name)
 );
 
 -- ---------------------------------------------------------------------------
@@ -99,6 +112,7 @@ alter table public.categories     enable row level security;
 alter table public.questions      enable row level security;
 alter table public.games          enable row level security;
 alter table public.game_questions enable row level security;
+alter table public.players        enable row level security;
 
 create policy "own categories" on public.categories
   for all to authenticated
@@ -111,6 +125,11 @@ create policy "own questions" on public.questions
   with check (owner_id = (select auth.uid()));
 
 create policy "own games" on public.games
+  for all to authenticated
+  using (owner_id = (select auth.uid()))
+  with check (owner_id = (select auth.uid()));
+
+create policy "own players" on public.players
   for all to authenticated
   using (owner_id = (select auth.uid()))
   with check (owner_id = (select auth.uid()));
