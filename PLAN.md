@@ -43,3 +43,8 @@ Kategorie wählen (Big Blind) → Spielleitung wählt Frage → Frage → Schät
    - ✓ Spieler pro Abend: Die App merkt sich, wer welche Frage kennt, und bietet nur für alle neue Fragen an
    - Statistiken, Backup-Export/-Import
    - Weitere Spielleitung mit eigenem Account
+   - Gemeinsamer Fragenpool mehrerer Spielleitungen: Beim Abend zusätzlich zu den Spielern die
+     beteiligten Spielleitungen (Accounts mit eigener Bibliothek) eintragen. Gespielt werden Fragen
+     aus allen Bibliotheken; eigene Fragen kennt man, deshalb bekommt jede Spielleitung nur Fragen
+     der anderen – mitspielen darf sie trotzdem. Braucht: Freigabe der Fragen zwischen Accounts
+     (Datenbank-Regeln), Verknüpfung Spieler ↔ Account
