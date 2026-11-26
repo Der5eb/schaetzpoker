@@ -80,7 +80,7 @@ function YouTubeFrame({
       ref={ref}
       title={title}
       className={className}
-      src={youTubeEmbedUrl(videoId, start, end)}
+      src={youTubeEmbedUrl(videoId, start)}
       allow="autoplay; encrypted-media; fullscreen"
       referrerPolicy="strict-origin-when-cross-origin"
       allowFullScreen
@@ -88,9 +88,10 @@ function YouTubeFrame({
   )
 }
 
-function youTubeEmbedUrl(id: string, start?: number, end?: number): string {
+// Ohne „end“: Das Ende hält YouTubePlayer selbst ein. Ein von YouTube beendetes Video
+// springt beim nächsten Abspielen auf 0:00 und müsste neu laden.
+function youTubeEmbedUrl(id: string, start?: number): string {
   const p = new URLSearchParams({ enablejsapi: '1', rel: '0', playsinline: '1', modestbranding: '1', origin: location.origin })
   if (start != null) p.set('start', String(start))
-  if (end != null) p.set('end', String(end))
   return `https://www.youtube-nocookie.com/embed/${id}?${p}`
 }

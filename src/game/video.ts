@@ -2,8 +2,12 @@
 // Der Player meldet seinen Zustand zurück – so wissen wir, ob ein Ausschnitt schon zu Ende ist
 // oder ob der Browser das Abspielen mit Ton blockiert hat.
 
-const PLAYING = 1
 const ENDED = 0
+const PLAYING = 1
+const PAUSED = 2
+const BUFFERING = 3
+/** So lange darf ein Video laden, bevor wir von einer Sperre ausgehen */
+const MAX_LOADING_MS = 15000
 
 type SoundListener = (blocked: boolean) => void
 const soundListeners = new Set<SoundListener>()
@@ -32,6 +36,8 @@ export class YouTubePlayer {
   private queue: (() => void)[] = []
   private handshake: number | undefined
   private check: number | undefined
+  private watchStarted = 0
+  private triedMuted = false
   /** Zuletzt gesehen, dass die Wiedergabezeit weiterläuft (ms) */
   private lastProgress = 0
   /** Von uns stummgeschaltet, weil der Browser Ton ohne Klick nicht erlaubt */
@@ -40,13 +46,11 @@ export class YouTubePlayer {
   waitingForClick = false
 
   readonly iframe: HTMLIFrameElement
-  private readonly videoId: string
   private readonly start: number
   private readonly end: number | undefined
 
   constructor(iframe: HTMLIFrameElement, videoId: string, start?: number, end?: number) {
     this.iframe = iframe
-    this.videoId = videoId
     this.start = start ?? 0
     this.end = end
     ensureListener()
@@ -83,6 +87,12 @@ export class YouTubePlayer {
         if (this.state === PLAYING && info.currentTime > this.time) this.lastProgress = Date.now()
         this.time = info.currentTime
       }
+      // Ende des Ausschnitts selbst einhalten: anhalten statt YouTube „beenden“ zu lassen –
+      // so bleibt das Video geladen und startet beim nächsten Mal sofort.
+      if (this.state === PLAYING && this.end != null && this.time >= this.end - 0.25) {
+        this.state = PAUSED
+        this.send('pauseVideo')
+      }
     }
   }
 
@@ -96,14 +106,12 @@ export class YouTubePlayer {
         }
         return this.send('pauseVideo')
       }
-      // Ausschnitt schon durchgelaufen? Dann würde YouTube das ganze Video ab 0:00 abspielen –
-      // stattdessen den Ausschnitt neu laden (startet und stoppt an den richtigen Stellen).
+      // Ausschnitt schon durchgelaufen (oder außerhalb)? Zurück an den Anfang springen –
+      // ohne Neuladen, damit es sofort weitergeht.
+      const started = this.state !== -1 && this.state !== 5
       const outside = this.state === ENDED || this.time < this.start - 1 || (this.end != null && this.time >= this.end - 0.5)
-      if (cmd === 'restart' || (outside && this.state !== -1 && this.state !== 5)) {
-        this.send('loadVideoById', [{ videoId: this.videoId, startSeconds: this.start, ...(this.end != null && { endSeconds: this.end }) }])
-      } else {
-        this.send('playVideo')
-      }
+      if (cmd === 'restart' || (started && outside)) this.send('seekTo', [this.start, true])
+      this.send('playVideo')
       this.watchStart()
     }
     if (this.ready) run()
@@ -131,20 +139,43 @@ export class YouTubePlayer {
   /**
    * Läuft das Video nach dem Befehl nicht an, hat der Browser vermutlich Ton ohne Klick blockiert:
    * stumm weiterspielen und am TV um einen Klick bitten. Klappt nicht mal das, startet es nach dem Klick.
+   * Solange YouTube noch lädt, wird gewartet – langes Laden ist keine Sperre.
    */
   private watchStart() {
     window.clearTimeout(this.check)
-    this.check = window.setTimeout(() => {
-      if (this.running()) return
-      this.send('mute')
-      this.send('playVideo')
-      this.check = window.setTimeout(() => {
-        if (this.running()) this.mutedByUs = true
-        else this.waitingForClick = true
-        notifySound()
-      }, 2500)
-    }, 3000)
+    this.watchStarted = Date.now()
+    this.triedMuted = false
+    const tick = () => {
+      if (this.running()) {
+        if (this.triedMuted) {
+          this.mutedByUs = true
+          notifySound()
+        }
+        return
+      }
+      const elapsed = Date.now() - this.watchStarted
+      // Lädt noch oder meldet schon „spielt“, die Zeit läuft aber noch nicht: abwarten
+      const loading = (this.state === BUFFERING || this.state === PLAYING) && elapsed < MAX_LOADING_MS
+      if (elapsed < 2500 || loading) {
+        this.check = window.setTimeout(tick, 500)
+        return
+      }
+      if (!this.triedMuted) {
+        // Abgelehnt: stumm noch einmal versuchen (das erlauben Browser ohne Klick)
+        this.triedMuted = true
+        this.watchStarted = Date.now()
+        this.send('mute')
+        this.send('playVideo')
+        this.check = window.setTimeout(tick, 500)
+        return
+      }
+      this.send('unMute')
+      this.waitingForClick = true
+      notifySound()
+    }
+    this.check = window.setTimeout(tick, 500)
   }
+
   private send(func: string, args: unknown[] = []) {
     this.post({ event: 'command', func, args })
   }
