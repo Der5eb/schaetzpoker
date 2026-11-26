@@ -3,7 +3,6 @@
 // oder ob der Browser das Abspielen mit Ton blockiert hat.
 
 const PLAYING = 1
-const BUFFERING = 3
 const ENDED = 0
 
 type SoundListener = (blocked: boolean) => void
@@ -33,8 +32,12 @@ export class YouTubePlayer {
   private queue: (() => void)[] = []
   private handshake: number | undefined
   private check: number | undefined
+  /** Zuletzt gesehen, dass die Wiedergabezeit weiterläuft (ms) */
+  private lastProgress = 0
   /** Von uns stummgeschaltet, weil der Browser Ton ohne Klick nicht erlaubt */
   mutedByUs = false
+  /** Browser hat sogar stummes Abspielen blockiert – nach dem nächsten Klick am TV starten */
+  waitingForClick = false
 
   readonly iframe: HTMLIFrameElement
   private readonly videoId: string
@@ -60,7 +63,7 @@ export class YouTubePlayer {
     window.clearInterval(this.handshake)
     window.clearTimeout(this.check)
     players.delete(this)
-    if (this.mutedByUs) notifySound()
+    if (this.mutedByUs || this.waitingForClick) notifySound()
   }
 
   receive(msg: { event?: string; info?: { playerState?: number; currentTime?: number } | null }) {
@@ -76,7 +79,10 @@ export class YouTubePlayer {
     if (msg.event === 'infoDelivery' || msg.event === 'onStateChange') {
       const info = msg.info
       if (typeof info?.playerState === 'number') this.state = info.playerState
-      if (typeof info?.currentTime === 'number') this.time = info.currentTime
+      if (typeof info?.currentTime === 'number') {
+        if (this.state === PLAYING && info.currentTime > this.time) this.lastProgress = Date.now()
+        this.time = info.currentTime
+      }
     }
   }
 
@@ -84,6 +90,10 @@ export class YouTubePlayer {
     const run = () => {
       if (cmd === 'pause') {
         window.clearTimeout(this.check)
+        if (this.waitingForClick) {
+          this.waitingForClick = false
+          notifySound()
+        }
         return this.send('pauseVideo')
       }
       // Ausschnitt schon durchgelaufen? Dann würde YouTube das ganze Video ab 0:00 abspielen –
@@ -100,30 +110,41 @@ export class YouTubePlayer {
     else this.queue = [run]
   }
 
-  unmute() {
-    if (!this.mutedByUs) return
-    this.mutedByUs = false
-    this.send('unMute')
+  /** Nach einem Klick am TV: Ton einschalten bzw. blockiertes Video jetzt starten. */
+  activate() {
+    if (this.mutedByUs) {
+      this.mutedByUs = false
+      this.send('unMute')
+    }
+    if (this.waitingForClick) {
+      this.waitingForClick = false
+      this.send('unMute')
+      this.send('playVideo')
+    }
   }
 
-  /** Läuft das Video nach dem Befehl nicht an, hat der Browser vermutlich Ton blockiert: stumm starten. */
+  /** Läuft wirklich etwas? „Lädt“ zählt nicht – blockierte Videos bleiben oft beim Laden hängen. */
+  private running() {
+    return this.state === PLAYING && Date.now() - this.lastProgress < 1500
+  }
+
+  /**
+   * Läuft das Video nach dem Befehl nicht an, hat der Browser vermutlich Ton ohne Klick blockiert:
+   * stumm weiterspielen und am TV um einen Klick bitten. Klappt nicht mal das, startet es nach dem Klick.
+   */
   private watchStart() {
     window.clearTimeout(this.check)
     this.check = window.setTimeout(() => {
-      if (this.state === PLAYING || this.state === BUFFERING) return
+      if (this.running()) return
       this.send('mute')
       this.send('playVideo')
       this.check = window.setTimeout(() => {
-        if (this.state === PLAYING || this.state === BUFFERING) {
-          this.mutedByUs = true
-          notifySound()
-        } else {
-          this.send('unMute')
-        }
-      }, 1500)
-    }, 2000)
+        if (this.running()) this.mutedByUs = true
+        else this.waitingForClick = true
+        notifySound()
+      }, 2500)
+    }, 3000)
   }
-
   private send(func: string, args: unknown[] = []) {
     this.post({ event: 'command', func, args })
   }
@@ -140,7 +161,7 @@ export function controlVideo(player: YouTubePlayer, cmd: 'play' | 'pause' | 'res
 }
 
 function notifySound() {
-  const blocked = [...players].some((p) => p.mutedByUs)
+  const blocked = [...players].some((p) => p.mutedByUs || p.waitingForClick)
   soundListeners.forEach((l) => l(blocked))
 }
 
@@ -150,8 +171,8 @@ export function onSoundBlocked(l: SoundListener): () => void {
   return () => soundListeners.delete(l)
 }
 
-/** Nach einem Klick/Tastendruck am TV: Ton für alle stumm gestarteten Videos einschalten. */
-export function unmuteAll() {
-  players.forEach((p) => p.unmute())
+/** Nach einem Klick/Tastendruck am TV: Ton einschalten bzw. blockierte Videos starten. */
+export function activateVideos() {
+  players.forEach((p) => p.activate())
   notifySound()
 }

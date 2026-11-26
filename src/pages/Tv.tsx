@@ -8,7 +8,7 @@ import { formatBlinds } from '../game/blinds'
 import { mediaKey } from '../game/display'
 import { newRoomCode, useTvRoom } from '../game/room'
 import type { DisplayState, VideoCommand } from '../game/types'
-import { controlVideo, onSoundBlocked, unmuteAll, type VideoRegistry } from '../game/video'
+import { activateVideos, controlVideo, onSoundBlocked, type VideoRegistry } from '../game/video'
 
 const CODE_KEY = 'schaetzpoker:tv-code'
 
@@ -47,19 +47,32 @@ export function Tv() {
 
   const { connected } = useTvRoom(code, setDisplay, onVideo)
 
-  // Erlaubt der Browser keinen Ton ohne Klick, läuft das Video stumm – ein Klick schaltet ihn ein
+  // Browser spielen Videos mit Ton erst, wenn jemand einmal auf die Seite geklickt hat.
+  // Bis dahin bittet der TV darum, sobald ein Video kommt; blockierte Videos laufen stumm
+  // (oder starten nach dem Klick).
   const [soundBlocked, setSoundBlocked] = useState(false)
+  const [activated, setActivated] = useState(() => navigator.userActivation?.hasBeenActive ?? false)
   useEffect(() => onSoundBlocked(setSoundBlocked), [])
   useEffect(() => {
-    if (!soundBlocked) return
-    const unmute = () => unmuteAll()
-    window.addEventListener('pointerdown', unmute)
-    window.addEventListener('keydown', unmute)
-    return () => {
-      window.removeEventListener('pointerdown', unmute)
-      window.removeEventListener('keydown', unmute)
+    const activate = () => {
+      setActivated(true)
+      activateVideos()
     }
-  }, [soundBlocked])
+    window.addEventListener('pointerdown', activate)
+    window.addEventListener('keydown', activate)
+    return () => {
+      window.removeEventListener('pointerdown', activate)
+      window.removeEventListener('keydown', activate)
+    }
+  }, [])
+  const hasVideo =
+    display?.phase === 'round' &&
+    [display.question, ...display.hints, display.answer?.explanation].some((b) => b?.media.some((m) => m.type === 'youtube'))
+  const soundHint = soundBlocked
+    ? 'Video braucht einen Klick: einmal auf den Bildschirm klicken oder eine Taste drücken'
+    : hasVideo && !activated
+      ? 'Damit das Video mit Ton läuft: einmal auf den Bildschirm klicken oder eine Taste drücken'
+      : null
   const focus = display?.phase === 'round' ? display.focus : null
 
   useEffect(() => {
@@ -111,13 +124,13 @@ export function Tv() {
         </p>
       )}
 
-      {soundBlocked && (
+      {soundHint && (
         <div
           role="status"
           className="animate-enter fixed inset-x-0 top-[3vh] z-[60] mx-auto flex w-fit items-center gap-[0.7em] rounded-full bg-gold-300 px-[1.4em] py-[0.6em] text-[clamp(1rem,1.5vw,2rem)] font-semibold text-felt-950 shadow-2xl shadow-black/50"
         >
           <Icon name="youtube" weight="fill" className="size-[1.3em]" />
-          Video läuft ohne Ton – einmal auf den Bildschirm klicken oder eine Taste drücken
+          {soundHint}
         </div>
       )}
 
