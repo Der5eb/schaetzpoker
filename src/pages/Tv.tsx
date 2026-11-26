@@ -8,21 +8,7 @@ import { formatBlinds } from '../game/blinds'
 import { mediaKey } from '../game/display'
 import { newRoomCode, useTvRoom } from '../game/room'
 import type { DisplayState, VideoCommand } from '../game/types'
-import { activateVideos, controlVideo, onSoundBlocked, type VideoRegistry } from '../game/video'
-
-const CODE_KEY = 'schaetzpoker:tv-code'
-
-function loadCode(): string {
-  try {
-    const existing = sessionStorage.getItem(CODE_KEY)
-    if (existing) return existing
-    const code = newRoomCode()
-    sessionStorage.setItem(CODE_KEY, code)
-    return code
-  } catch {
-    return newRoomCode()
-  }
-}
+import { activateVideos, controlVideo, onSoundState, type VideoRegistry } from '../game/video'
 
 const STEPS: { label: string; icon: IconName }[] = [
   { label: 'Frage', icon: 'cards' },
@@ -33,7 +19,8 @@ const STEPS: { label: string; icon: IconName }[] = [
 
 /** Präsentations-Bildschirm für Laptop/TV. Braucht kein Login. */
 export function Tv() {
-  const [code] = useState(loadCode)
+  // Bei jedem Laden der Seite ein neuer Code – danach einmal neu koppeln (QR-Code scannen)
+  const [code] = useState(newRoomCode)
   const [display, setDisplay] = useState<DisplayState | null>(null)
   const [videos] = useState<VideoRegistry>(() => new Map())
 
@@ -52,7 +39,15 @@ export function Tv() {
   // (oder starten nach dem Klick).
   const [soundBlocked, setSoundBlocked] = useState(false)
   const [activated, setActivated] = useState(() => navigator.userActivation?.hasBeenActive ?? false)
-  useEffect(() => onSoundBlocked(setSoundBlocked), [])
+  useEffect(
+    () =>
+      onSoundState(({ blocked, works }) => {
+        setSoundBlocked(blocked)
+        // Lief schon ein Video mit Ton, braucht es keinen Hinweis mehr (auch nicht bei der nächsten Frage)
+        if (works) setActivated(true)
+      }),
+    [],
+  )
   useEffect(() => {
     const activate = () => {
       setActivated(true)

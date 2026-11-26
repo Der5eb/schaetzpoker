@@ -9,8 +9,15 @@ const BUFFERING = 3
 /** So lange darf ein Video laden, bevor wir von einer Sperre ausgehen */
 const MAX_LOADING_MS = 15000
 
-type SoundListener = (blocked: boolean) => void
+export interface SoundState {
+  /** Ein Video läuft nur stumm oder wartet auf einen Klick am TV */
+  blocked: boolean
+  /** Auf dieser Seite lief schon ein Video mit Ton – der Browser erlaubt es also */
+  works: boolean
+}
+type SoundListener = (s: SoundState) => void
 const soundListeners = new Set<SoundListener>()
+let soundWorks = false
 const players = new Set<YouTubePlayer>()
 let listening = false
 
@@ -123,6 +130,7 @@ export class YouTubePlayer {
     if (this.mutedByUs) {
       this.mutedByUs = false
       this.send('unMute')
+      soundWorks = true
     }
     if (this.waitingForClick) {
       this.waitingForClick = false
@@ -147,10 +155,9 @@ export class YouTubePlayer {
     this.triedMuted = false
     const tick = () => {
       if (this.running()) {
-        if (this.triedMuted) {
-          this.mutedByUs = true
-          notifySound()
-        }
+        if (this.triedMuted) this.mutedByUs = true
+        else soundWorks = true
+        notifySound()
         return
       }
       const elapsed = Date.now() - this.watchStarted
@@ -193,11 +200,11 @@ export function controlVideo(player: YouTubePlayer, cmd: 'play' | 'pause' | 'res
 
 function notifySound() {
   const blocked = [...players].some((p) => p.mutedByUs || p.waitingForClick)
-  soundListeners.forEach((l) => l(blocked))
+  soundListeners.forEach((l) => l({ blocked, works: soundWorks }))
 }
 
-/** Meldet, ob gerade ein Video nur stumm läuft (Ton braucht einen Klick am TV). */
-export function onSoundBlocked(l: SoundListener): () => void {
+/** Meldet, ob gerade ein Video nur stumm läuft (Ton braucht einen Klick am TV) und ob Ton schon klappte. */
+export function onSoundState(l: SoundListener): () => void {
   soundListeners.add(l)
   return () => soundListeners.delete(l)
 }
