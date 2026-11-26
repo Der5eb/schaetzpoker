@@ -94,7 +94,7 @@ export function GameSetup() {
         <section className="flex flex-col gap-3">
           <SectionTitle>TV verbinden</SectionTitle>
           <p className="text-sm leading-relaxed text-cream-300">
-            Auf dem Laptop am Fernseher <span className="font-medium text-cream-100">{tvUrl().replace(/^https?:\/\//, '')}</span> öffnen
+            Am Fernseher <span className="font-medium text-cream-100">{tvUrl().replace(/^https?:\/\//, '')}</span> öffnen (im TV-Browser oder per Laptop/Chromecast)
             und den QR-Code mit diesem Handy scannen – oder den Code hier eintippen. Geht auch später.
           </p>
           <div className="relative">

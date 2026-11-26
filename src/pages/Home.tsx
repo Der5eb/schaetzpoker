@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 const rows: { to: string; icon: IconName; title: string; text: string }[] = [
   { to: '/bibliothek', icon: 'cards', title: 'Bibliothek', text: 'Fragen und Kategorien verwalten' },
   { to: '/spiel', icon: 'chip', title: 'Spielabend', text: 'Abend starten und TV koppeln' },
-  { to: '/tv', icon: 'tv', title: 'TV-Ansicht', text: 'Am Laptop für den Fernseher' },
+  { to: '/tv', icon: 'tv', title: 'TV-Ansicht', text: 'Auf dem Fernseher öffnen' },
 ]
 
 export function Home() {
