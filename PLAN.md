@@ -45,6 +45,7 @@ Kategorie wählen (Big Blind) → Spielleitung wählt Frage → Frage → Schät
    - Weitere Spielleitung mit eigenem Account
    - Gemeinsamer Fragenpool mehrerer Spielleitungen: Beim Abend zusätzlich zu den Spielern die
      beteiligten Spielleitungen (Accounts mit eigener Bibliothek) eintragen. Gespielt werden Fragen
-     aus allen Bibliotheken; eigene Fragen kennt man, deshalb bekommt jede Spielleitung nur Fragen
-     der anderen – mitspielen darf sie trotzdem. Braucht: Freigabe der Fragen zwischen Accounts
-     (Datenbank-Regeln), Verknüpfung Spieler ↔ Account
+     aus allen Bibliotheken. Dass die Autorin/der Autor die eigene Frage kennt, zählt beim Filter
+     „für alle neu“ nicht (sonst bliebe bei vier Spielleitungen keine Frage übrig) – mitspielen dürfen
+     alle trotzdem. Offen: Wer leitet bzw. setzt bei der eigenen Frage aus?
+     Braucht: Freigabe der Fragen zwischen Accounts (Datenbank-Regeln), Verknüpfung Spieler ↔ Account
