@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ActionSheet } from '../components/ActionSheet'
 import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
 import { useAuth } from '../lib/auth'
@@ -17,6 +18,8 @@ export function Home() {
   const { session } = useAuth()
   const [stats, setStats] = useState<{ ready: number; total: number } | null>(null)
   const [openGame, setOpenGame] = useState<Game | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchQuestions()
@@ -98,15 +101,27 @@ export function Home() {
         </nav>
       </main>
 
-      <footer className="mt-auto flex items-center justify-between gap-4 pt-12 text-sm text-cream-400">
-        <span className="truncate">{session?.user.email}</span>
+      <footer className="mt-auto flex justify-end pt-12">
         <button
-          onClick={() => supabase?.auth.signOut()}
-          className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 transition-colors hover:bg-white/5 hover:text-cream-100"
+          type="button"
+          aria-label="Konto"
+          onClick={() => setAccountOpen(true)}
+          className="btn btn-icon -mr-2 text-cream-400 hover:bg-white/5 hover:text-cream-100"
         >
-          <Icon name="signOut" className="size-4" /> Abmelden
+          <Icon name="user" weight="duotone" className="size-7" />
         </button>
       </footer>
+
+      <ActionSheet
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        label="Konto"
+        title={session?.user.email}
+        options={[
+          { icon: 'key', label: 'Passwort ändern', onSelect: () => navigate('/passwort') },
+          { icon: 'signOut', label: 'Abmelden', onSelect: () => supabase?.auth.signOut() },
+        ]}
+      />
     </div>
   )
 }

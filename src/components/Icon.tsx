@@ -16,6 +16,7 @@ import {
   EyeSlash,
   FlagCheckered,
   Image,
+  Key,
   MagnifyingGlass,
   Pause,
   PencilSimpleLine,
@@ -31,6 +32,7 @@ import {
   Tag,
   Television,
   Trash,
+  UserCircle,
   UsersThree,
   X,
   YoutubeLogo,
@@ -76,6 +78,8 @@ const icons = {
   diamond: Diamond,
   spade: Spade,
   users: UsersThree,
+  key: Key,
+  user: UserCircle,
 } satisfies Record<string, PhosphorIcon>
 
 export type IconName = keyof typeof icons

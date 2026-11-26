@@ -8,6 +8,7 @@ import { GameSetup } from './pages/GameSetup'
 import { Home } from './pages/Home'
 import { Library } from './pages/Library'
 import { Login } from './pages/Login'
+import { Password } from './pages/Password'
 import { QuestionEditor } from './pages/QuestionEditor'
 import { SetupMissing } from './pages/SetupMissing'
 import { Tv } from './pages/Tv'
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/frage/:id" element={<RequireAuth><QuestionEditor key="bearbeiten" /></RequireAuth>} />
           <Route path="/bibliothek" element={<RequireAuth><Library /></RequireAuth>} />
           <Route path="/kategorien" element={<RequireAuth><Categories /></RequireAuth>} />
+          <Route path="/passwort" element={<RequireAuth><Password /></RequireAuth>} />
           <Route path="/spiel" element={<RequireAuth><GameSetup /></RequireAuth>} />
           <Route path="/leitung/:id" element={<RequireAuth><GameMaster /></RequireAuth>} />
           {/* Der TV braucht kein Login: Er bekommt Inhalte live von der Spielleitung. */}
