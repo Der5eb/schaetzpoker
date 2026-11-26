@@ -60,6 +60,7 @@ export function buildDisplay(
 
   return {
     phase: state.phase,
+    questionMode: state.questionMode,
     gameName: game.name,
     questionNumber: state.completed + 1,
     // Am Ende: die Blinds der zuletzt gespielten Frage statt der nächsten Stufe
@@ -76,7 +77,7 @@ export function buildDisplay(
             .filter((c) => (counts.get(c.id) ?? 0) > 0)
             .map((c) => ({ id: c.id, name: c.name, color: c.color, count: counts.get(c.id) ?? 0 }))
         : [],
-    pickedCategory: state.phase === 'category' ? state.categoryId : null,
+    pickedCategory: state.phase === 'category' && state.questionMode !== 'random' ? state.categoryId : null,
     category: q && category ? { name: category.name, color: category.color } : null,
     question: q ? { text: q.question, media: q.question_media } : null,
     hints: q

@@ -1,6 +1,6 @@
 import { deleteMediaFiles } from './media'
 import { supabase } from './supabase'
-import { initialState } from '../game/types'
+import { initialState, type QuestionMode } from '../game/types'
 import type { Category, Game, Media, Player, PlayRecord, Question } from './types'
 
 function db() {
@@ -145,13 +145,13 @@ export function missingForReady(q: QuestionInput): string[] {
 // ---------------------------------------------------------------------------
 
 export async function createGame(
-  input: Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level'> & { player_ids: string[] },
+  input: Pick<Game, 'room_code' | 'name' | 'blind_levels' | 'questions_per_level'> & { player_ids: string[]; questionMode: QuestionMode },
 ): Promise<Game> {
   // Ohne Spieler die Spalte weglassen – so klappt es auch ohne Datenbank-Update 002
-  const { player_ids, ...rest } = input
+  const { player_ids, questionMode, ...rest } = input
   const { data, error } = await db()
     .from('games')
-    .insert({ ...rest, ...(player_ids.length ? { player_ids } : {}), state: initialState })
+    .insert({ ...rest, ...(player_ids.length ? { player_ids } : {}), state: { ...initialState, questionMode } })
     .select()
     .single()
   if (error) throw error

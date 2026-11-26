@@ -452,7 +452,11 @@ function CategoryPick({ d }: { d: DisplayState }) {
           key={picked ? 'picked' : 'choose'}
           className="animate-enter text-center font-display text-[clamp(2.2rem,4.4vw,5.6rem)] leading-tight font-extrabold text-cream-50"
         >
-          {picked ? (
+          {d.questionMode === 'random' ? (
+            <>
+              Die nächste Frage kommt <em className="font-normal text-gold-200 italic">per Zufall …</em>
+            </>
+          ) : picked ? (
             <>
               Die Spielleitung wählt <em className="font-normal text-gold-200 italic">eine Frage …</em>
             </>

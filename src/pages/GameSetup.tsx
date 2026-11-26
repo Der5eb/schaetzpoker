@@ -4,12 +4,24 @@ import { BlindEditor } from '../components/BlindEditor'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { PlayerPicker } from '../components/PlayerPicker'
+import { QuestionModePicker } from '../components/QuestionModePicker'
 import { ActionBar, SectionTitle, Shell } from '../components/Shell'
 import { defaultLevels, validateLevels } from '../game/blinds'
 import { availableQuestions } from '../game/display'
 import { newRoomCode, normalizeRoomCode } from '../game/room'
+import type { QuestionMode } from '../game/types'
 import { createGame, fetchLastPlayerIds, fetchOpenGame, fetchPlayers, fetchPlayHistory, fetchQuestions, updateGame } from '../lib/data'
 import type { BlindLevel, Game, Player, PlayRecord, Question } from '../lib/types'
+
+const MODE_KEY = 'schaetzpoker:fragen-modus'
+
+function loadMode(): QuestionMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'random' ? 'random' : 'pick'
+  } catch {
+    return 'pick'
+  }
+}
 
 function tvUrl(): string {
   return `${location.origin}${location.pathname}#/tv`
@@ -28,6 +40,7 @@ export function GameSetup() {
   const [name, setName] = useState(() => `Spielabend ${new Date().toLocaleDateString('de-DE')}`)
   const [levels, setLevels] = useState<BlindLevel[]>(() => defaultLevels(10, 20, 6))
   const [perLevel, setPerLevel] = useState(3)
+  const [mode, setMode] = useState<QuestionMode>(loadMode)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<null | 'new' | 'finish'>(null)
@@ -76,7 +89,13 @@ export function GameSetup() {
         blind_levels: levels,
         questions_per_level: perLevel,
         player_ids: playerIds,
+        questionMode: mode,
       })
+      try {
+        localStorage.setItem(MODE_KEY, mode)
+      } catch {
+        /* egal */
+      }
       navigate(`/leitung/${game.id}`)
     } catch (e) {
       console.error(e)
@@ -152,6 +171,11 @@ export function GameSetup() {
         <section className="flex flex-col gap-3">
           <SectionTitle>Name des Abends</SectionTitle>
           <input className="field" aria-label="Name des Abends" value={name} onChange={(e) => setName(e.target.value)} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Fragen</SectionTitle>
+          <QuestionModePicker value={mode} onChange={setMode} />
         </section>
 
         <section className="flex flex-col gap-4">

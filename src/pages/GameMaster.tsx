@@ -9,6 +9,7 @@ import { HoldButton } from '../components/HoldButton'
 import { ActionSheet } from '../components/ActionSheet'
 import { Peek } from '../components/Peek'
 import { PlayerPicker } from '../components/PlayerPicker'
+import { QuestionModePicker } from '../components/QuestionModePicker'
 import { ActionBar, Fixed } from '../components/Shell'
 import { blindInfo, formatBlinds, validateLevels } from '../game/blinds'
 import { availableQuestions, buildDisplay, isZoomable, mediaKey, type Audience } from '../game/display'
@@ -140,6 +141,8 @@ export function GameMaster() {
   const info = blindInfo(game.blind_levels, game.questions_per_level, s.completed)
   const question = questions.find((q) => q.id === s.questionId)
   const available = availableQuestions(questions, audience)
+  const random = s.questionMode === 'random'
+  const toChoice = random ? 'Weiter zur nächsten Frage' : 'Weiter zur Kategorie-Wahl'
 
   async function endRound() {
     if (!game || !question) return
@@ -244,7 +247,17 @@ export function GameMaster() {
         </div>
       )}
 
-      {s.phase === 'category' && (
+      {s.phase === 'category' && random && (
+        <RandomStep
+          categories={categories}
+          available={available}
+          drawnId={s.questionId}
+          onDraw={(questionId) => setState({ questionId })}
+          onStart={(q) => setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })}
+        />
+      )}
+
+      {s.phase === 'category' && !random && (
         <CategoryStep
           categories={categories}
           available={available}
@@ -370,7 +383,7 @@ export function GameMaster() {
               options={[
                 ...(s.reveal > 0
                   ? [{ icon: 'eyeOff' as IconName, label: `${items[s.reveal].label} wieder verdecken`, onSelect: () => setState({ reveal: s.reveal - 1, decided: false }) }]
-                  : [{ icon: 'shuffle' as IconName, label: 'Andere Frage wählen', onSelect: () => setState({ phase: 'category', questionId: null }) }]),
+                  : [{ icon: 'shuffle' as IconName, label: random ? 'Andere Frage ziehen' : 'Andere Frage wählen', onSelect: () => setState({ phase: 'category', questionId: null }) }]),
                 ...(s.reveal < 3
                   ? [{ icon: 'crown' as IconName, label: 'Nur 1 Spieler übrig – Lösung zeigen', onSelect: () => setConfirmDecided(true) }]
                   : []),
@@ -396,7 +409,7 @@ export function GameMaster() {
         <div className="flex flex-col gap-3">
           <p className="text-danger">Die aktuelle Frage wurde nicht gefunden.</p>
           <button type="button" className="btn btn-ghost" onClick={() => setState({ phase: 'category', questionId: null })}>
-            Zur Kategorie-Wahl
+            {random ? 'Neue Frage ziehen' : 'Zur Kategorie-Wahl'}
           </button>
         </div>
       )}
@@ -410,7 +423,7 @@ export function GameMaster() {
           <p className="font-display text-5xl font-black text-gold-200 tabular-nums">{formatAnswer(question)}</p>
           <p className="max-w-[32ch] text-sm text-cream-300">Alle, die noch dabei sind, decken ihre Schätzung auf. Wer am nächsten dran ist, gewinnt den Pot.</p>
           <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" onClick={nextRound}>
-            {levelUpNext ? 'Weiter: Blinds steigen' : 'Weiter zur Kategorie-Wahl'} <Icon name="arrow" weight="bold" className="size-5" />
+            {levelUpNext ? 'Weiter: Blinds steigen' : toChoice} <Icon name="arrow" weight="bold" className="size-5" />
           </button>
         </div>
       )}
@@ -423,7 +436,7 @@ export function GameMaster() {
             {formatBlinds(info.current)}
           </p>
           <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" onClick={() => setState({ phase: 'category' })}>
-            Weiter zur Kategorie-Wahl <Icon name="arrow" weight="bold" className="size-5" />
+            {toChoice} <Icon name="arrow" weight="bold" className="size-5" />
           </button>
         </div>
       )}
@@ -445,7 +458,7 @@ export function GameMaster() {
       </ConfirmDialog>
 
       {s.phase !== 'round' && s.phase !== 'ended' && (
-        <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && s.categoryId ? 'pb-44' : ''}`}>
+        <div className={`mt-12 flex flex-col gap-2.5 ${s.phase === 'category' && (random || s.categoryId) ? 'pb-44' : ''}`}>
           {players && (
             <Collapsible title={game.player_ids?.length ? `Spieler (${game.player_ids.length})` : 'Spieler'} icon="users">
               <div className="flex flex-col gap-3">
@@ -461,6 +474,15 @@ export function GameMaster() {
               </div>
             </Collapsible>
           )}
+          <Collapsible title={random ? 'Fragen: zufällig' : 'Fragen: Big Blind wählt'} icon={random ? 'shuffle' : 'crown'}>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm leading-relaxed text-cream-300">Gilt ab der nächsten Frage.</p>
+              <QuestionModePicker
+                value={s.questionMode}
+                onChange={(questionMode) => questionMode !== s.questionMode && setState({ questionMode, categoryId: null, questionId: null })}
+              />
+            </div>
+          </Collapsible>
           <Collapsible title="Blinds anpassen" icon="stack">
             <BlindSettings game={game} onApply={(levels, perLevel) => save({ blind_levels: levels, questions_per_level: perLevel })} />
           </Collapsible>
@@ -727,6 +749,91 @@ function CategoryStep({
         ))}
       </ul>
       <p className="text-xs text-cream-300">Die gewählte Kategorie wird am TV hervorgehoben.</p>
+    </div>
+  )
+}
+
+/** Zufallsmodus: Kategorie zufällig, daraus eine zufällige Frage – jede Kategorie kommt gleich oft dran. */
+function drawQuestion(available: Question[], except?: string | null): Question | null {
+  const pool = available.length > 1 && except ? available.filter((q) => q.id !== except) : available
+  const byCategory = new Map<string, Question[]>()
+  for (const q of pool) byCategory.set(q.category_id ?? '', [...(byCategory.get(q.category_id ?? '') ?? []), q])
+  const groups = [...byCategory.values()]
+  if (groups.length === 0) return null
+  const group = groups[Math.floor(Math.random() * groups.length)]
+  return group[Math.floor(Math.random() * group.length)]
+}
+
+function RandomStep({
+  categories,
+  available,
+  drawnId,
+  onDraw,
+  onStart,
+}: {
+  categories: Category[]
+  available: Question[]
+  drawnId: string | null
+  onDraw: (id: string) => void
+  onStart: (q: Question) => void
+}) {
+  const drawn = available.find((q) => q.id === drawnId) ?? null
+
+  // Noch keine (oder keine gültige) Frage gezogen? Dann gleich eine ziehen.
+  // Die gezogene Frage wird gespeichert – nach Neuladen bleibt sie dieselbe.
+  useEffect(() => {
+    if (drawn) return
+    const q = drawQuestion(available)
+    if (q) onDraw(q.id)
+  }, [drawn, available, onDraw])
+
+  if (available.length === 0) {
+    return (
+      <div className="animate-enter flex flex-col gap-4">
+        <p className="flex items-center gap-2 text-cream-200">
+          <Icon name="shuffle" weight="duotone" className="size-5 text-gold-300" /> Zufällige Frage
+        </p>
+        <p className="text-gold-200">Keine spielbereiten Fragen mehr übrig.</p>
+      </div>
+    )
+  }
+  if (!drawn) return <p className="text-cream-300">Ziehe eine Frage …</p>
+
+  return (
+    <div className="animate-enter flex flex-col gap-3">
+      <p className="flex items-center gap-2 text-cream-200">
+        <Icon name="shuffle" weight="duotone" className="size-5 text-gold-300" /> Zufällig gezogen
+      </p>
+      <p className="flex items-center gap-1.5 text-sm text-cream-300">
+        <Icon name="eyeOff" className="size-4" /> Nur du siehst die Frage, bis du sie am TV stellst.
+      </p>
+      <div key={drawn.id} className="card animate-enter flex flex-col gap-2 border-gold-300/80! bg-gold-400/10 px-4 py-4">
+        <CategoryBadge category={categories.find((c) => c.id === drawn.category_id)} />
+        <span className="font-display text-2xl leading-snug font-extrabold text-cream-50">{drawn.title}</span>
+        <span className="text-sm leading-relaxed text-cream-200">{drawn.question}</span>
+      </div>
+      {available.length > 1 && (
+        <button type="button" className="btn btn-ghost mt-1 min-h-11" onClick={() => {
+          const q = drawQuestion(available, drawn.id)
+          if (q) onDraw(q.id)
+        }}>
+          <Icon name="shuffle" className="size-4 text-gold-300" /> Andere Frage ziehen
+        </button>
+      )}
+      <p className="text-xs text-cream-300">
+        Noch {available.length} {available.length === 1 ? 'Frage' : 'Fragen'} im Topf.
+      </p>
+      <ActionBar>
+        <HoldButton
+          className="btn btn-primary w-full py-3 text-lg"
+          confirmTitle="Frage am TV stellen?"
+          confirmLabel="Frage stellen"
+          confirmBody={`„${drawn.title}“ erscheint sofort am TV.`}
+          onConfirm={() => onStart(drawn)}
+        >
+          <Icon name="tv" weight="duotone" className="size-6" /> Frage am TV stellen
+        </HoldButton>
+      </ActionBar>
     </div>
   )
 }

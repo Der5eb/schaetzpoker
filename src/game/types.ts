@@ -2,6 +2,9 @@ import type { BlindLevel, Media } from '../lib/types'
 
 export type Phase = 'lobby' | 'category' | 'round' | 'showdown' | 'blinds' | 'ended'
 
+/** pick = der Big Blind wählt die Kategorie, random = die App zieht eine zufällige Frage */
+export type QuestionMode = 'pick' | 'random'
+
 /** Spielstand – gehört der Spielleitung, wird in games.state gespeichert. */
 export interface GameState {
   phase: Phase
@@ -15,6 +18,8 @@ export interface GameState {
   decided: boolean
   /** Medium, das am TV groß gezeigt wird (Schlüssel aus mediaKey), sonst null */
   focus: string | null
+  /** Wie die nächste Frage gefunden wird – wird vor Spielbeginn festgelegt */
+  questionMode: QuestionMode
 }
 
 export const initialState: GameState = {
@@ -25,6 +30,7 @@ export const initialState: GameState = {
   reveal: 0,
   decided: false,
   focus: null,
+  questionMode: 'pick',
 }
 
 export interface DisplayBlock {
@@ -47,6 +53,7 @@ export interface DisplayState {
   untilIncrease: number
   previousBlinds: BlindLevel | null
   categories: { id: string; name: string; color: string; count: number }[]
+  questionMode: QuestionMode
   /** Vom Big Blind gewählte Kategorie, solange die Spielleitung die Frage aussucht */
   pickedCategory: string | null
   category: { name: string; color: string } | null
