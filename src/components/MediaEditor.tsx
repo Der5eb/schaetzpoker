@@ -137,7 +137,7 @@ function TimeInput({ label, value, onChange }: { label: string; value?: number; 
       <span className="text-cream-400">{label}</span>
       <input
         className="field min-h-11 w-20 px-2 py-1 text-sm"
-        inputMode="numeric"
+        inputMode="decimal"
         placeholder="m:ss"
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -179,11 +179,25 @@ function YouTubeForm({ onAdd, onCancel }: { onAdd: (m: Media) => void; onCancel:
       <div className="flex gap-2">
         <label className="flex flex-1 flex-col gap-1">
           <span className="label">Start (m:ss)</span>
-          <input className="field" inputMode="numeric" placeholder={parsed?.start != null ? formatTime(parsed.start) : '0:00'} value={start} onChange={(e) => setStart(e.target.value)} />
+          <input
+            className="field"
+            inputMode="decimal"
+            placeholder={parsed?.start != null ? formatTime(parsed.start) : '0:00'}
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            onBlur={() => setStart(formatTime(parseTime(start)))}
+          />
         </label>
         <label className="flex flex-1 flex-col gap-1">
           <span className="label">Ende (m:ss)</span>
-          <input className="field" inputMode="numeric" placeholder="optional" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <input
+            className="field"
+            inputMode="decimal"
+            placeholder="optional"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            onBlur={() => setEnd(formatTime(parseTime(end)))}
+          />
         </label>
       </div>
       <div className="flex justify-end gap-2">

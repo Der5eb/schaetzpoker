@@ -8,7 +8,7 @@ import { formatBlinds } from '../game/blinds'
 import { mediaKey } from '../game/display'
 import { newRoomCode, useTvRoom } from '../game/room'
 import type { DisplayState, VideoCommand } from '../game/types'
-import { controlVideo, type VideoRegistry } from '../game/video'
+import { controlVideo, onSoundBlocked, unmuteAll, type VideoRegistry } from '../game/video'
 
 const CODE_KEY = 'schaetzpoker:tv-code'
 
@@ -46,6 +46,20 @@ export function Tv() {
   )
 
   const { connected } = useTvRoom(code, setDisplay, onVideo)
+
+  // Erlaubt der Browser keinen Ton ohne Klick, läuft das Video stumm – ein Klick schaltet ihn ein
+  const [soundBlocked, setSoundBlocked] = useState(false)
+  useEffect(() => onSoundBlocked(setSoundBlocked), [])
+  useEffect(() => {
+    if (!soundBlocked) return
+    const unmute = () => unmuteAll()
+    window.addEventListener('pointerdown', unmute)
+    window.addEventListener('keydown', unmute)
+    return () => {
+      window.removeEventListener('pointerdown', unmute)
+      window.removeEventListener('keydown', unmute)
+    }
+  }, [soundBlocked])
   const focus = display?.phase === 'round' ? display.focus : null
 
   useEffect(() => {
@@ -95,6 +109,16 @@ export function Tv() {
         >
           {focusCaption}
         </p>
+      )}
+
+      {soundBlocked && (
+        <div
+          role="status"
+          className="animate-enter fixed inset-x-0 top-[3vh] z-[60] mx-auto flex w-fit items-center gap-[0.7em] rounded-full bg-gold-300 px-[1.4em] py-[0.6em] text-[clamp(1rem,1.5vw,2rem)] font-semibold text-felt-950 shadow-2xl shadow-black/50"
+        >
+          <Icon name="youtube" weight="fill" className="size-[1.3em]" />
+          Video läuft ohne Ton – einmal auf den Bildschirm klicken oder eine Taste drücken
+        </div>
       )}
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-[2vw] pb-[1.4vh] text-[clamp(0.7rem,0.85vw,1rem)] text-cream-400/80">

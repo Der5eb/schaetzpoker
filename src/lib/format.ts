@@ -30,10 +30,14 @@ export function formatAnswer(q: { answer: number | null; answer_unit: string; an
 }
 
 /** "1:30" → 90, "90" → 90, "1:02:03" → 3723 */
+/**
+ * Zeitangabe → Sekunden. Als Trenner gehen „:“, „.“, „,“ und Leerzeichen,
+ * weil die Zahlentastatur am Handy oft keinen Doppelpunkt hat: „1.30“ = 1:30.
+ */
 export function parseTime(input: string): number | undefined {
   const s = input.trim()
   if (!s) return undefined
-  const parts = s.split(':').map((p) => Number(p))
+  const parts = s.split(/\s*[:.,]\s*|\s+/).map((p) => (p === '' ? NaN : Number(p)))
   if (parts.some((p) => !Number.isFinite(p) || p < 0)) return undefined
   return parts.reduce((acc, p) => acc * 60 + p, 0)
 }
