@@ -109,7 +109,7 @@ export function BetPanel({
   function raiseTo(to: number) {
     if (!next) return
     if (to >= maxTo) act({ id: next, type: 'allin' })
-    else if (to > view.currentBet) act({ id: next, type: 'raise', to })
+    else if (to >= minTo) act({ id: next, type: 'raise', to })
   }
   /** Alle, die noch dran wären, gehen mit bzw. checken */
   function restCall() {
@@ -124,10 +124,26 @@ export function BetPanel({
     onChange(withActions(list))
   }
 
-  const base = view.currentBet > 0 ? view.currentBet : big
-  const raisePresets = (view.currentBet > 0 ? [2, 3, 4] : [1, 2, 4])
-    .map((f) => ({ label: view.currentBet > 0 ? `${f}×` : f === 1 ? 'BB' : `${f}× BB`, to: base * f }))
-    .filter((p) => p.to > view.currentBet && p.to < maxTo)
+  // Erhöhen geht nur um mindestens die letzte Erhöhung – darunter nur als All-in
+  const minTo = view.minRaiseTo
+  const cb = view.currentBet
+  const raisePresets = (
+    cb > 0
+      ? [
+          { label: 'Min.', to: minTo },
+          { label: '2×', to: cb * 2 },
+          { label: '3×', to: cb * 3 },
+          { label: '4×', to: cb * 4 },
+        ]
+      : [
+          { label: 'BB', to: big },
+          { label: '2× BB', to: big * 2 },
+          { label: '4× BB', to: big * 4 },
+        ]
+  )
+    .filter((p, i, all) => p.to >= minTo && p.to < maxTo && all.findIndex((q) => q.to === p.to) === i)
+    .slice(0, 3)
+  const amountOk = amount >= minTo || amount >= maxTo
   const onlyOne = view.live.length === 1
   const blindOf = (id: string) => (round === 0 ? (id === hand.bb ? 'bb' : id === hand.sb ? 'sb' : null) : null)
 
@@ -167,13 +183,13 @@ export function BetPanel({
                 Geht mit {formatChips(toCall)}
               </button>
             )}
-            {stack > toCall && (
+            {stack > toCall && view.canRaise && (
               <button
                 type="button"
                 aria-expanded={raising}
                 className={`btn btn-ghost col-span-2 min-h-12 ${raising ? 'border-gold-300!' : ''}`}
                 onClick={() => {
-                  setAmount(raisePresets[0]?.to ?? maxTo)
+                  setAmount(Math.min(minTo, maxTo))
                   setRaising(!raising)
                 }}
               >
@@ -206,11 +222,21 @@ export function BetPanel({
               </div>
               <div className="flex gap-2">
                 <ChipInput value={amount} onChange={setAmount} label="Erhöhen auf" className="flex-1 py-2 text-xl" />
-                <button type="button" className="btn btn-primary shrink-0" disabled={amount <= view.currentBet} onClick={() => raiseTo(amount)}>
+                <button type="button" className="btn btn-primary shrink-0" disabled={!amountOk} onClick={() => raiseTo(amount)}>
                   {view.currentBet > 0 ? 'Erhöhen' : 'Setzen'}
                 </button>
               </div>
+              <p className={`text-xs ${amountOk ? 'text-cream-400' : 'text-gold-200'}`}>
+                {maxTo <= minTo
+                  ? `Für eine volle Erhöhung (auf ${formatChips(minTo)}) reichen die Chips nicht – nur All-in.`
+                  : cb > 0
+                    ? `Mindestens auf ${formatChips(minTo)} – also um so viel wie die letzte Erhöhung.`
+                    : `Mindestens ${formatChips(minTo)} (ein Big Blind).`}
+              </p>
             </div>
+          )}
+          {!view.canRaise && toCall > 0 && (
+            <p className="text-xs text-cream-300">Das All-in war kleiner als eine volle Erhöhung – {names(next)} darf nur mitgehen oder aussteigen.</p>
           )}
           <button type="button" className="min-h-10 self-start text-xs font-semibold text-gold-200 underline-offset-4 hover:underline" onClick={restCall}>
             {view.currentBet > Math.min(...view.live.map((id) => view.street[id])) ? 'Alle übrigen gehen mit' : 'Alle übrigen checken'}

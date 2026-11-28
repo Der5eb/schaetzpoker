@@ -126,6 +126,10 @@ export interface HandView {
   currentBet: number
   /** Wer jetzt dran ist (null = Setzrunde abgeschlossen) */
   next: string | null
+  /** Mindestens auf diesen Betrag muss man setzen bzw. erhöhen (alles darunter nur als All-in) */
+  minRaiseTo: number
+  /** Darf die Person am Zug erhöhen? Nach einem zu kleinen All-in nur mitgehen oder aussteigen */
+  canRaise: boolean
   /** Letzte Aktion je Spieler in dieser Setzrunde */
   last: Record<string, BetAction>
 }
@@ -153,6 +157,8 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
   let street: Record<string, number> = {}
   let currentBet = 0
   let next: string | null = null
+  let minRaise = hand.blinds.big
+  let canRaise = true
   let last: Record<string, BetAction> = {}
 
   for (let r = 0; r <= upTo; r++) {
@@ -169,6 +175,9 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
       if (hand.bb) put(hand.bb, hand.blinds.big)
       currentBet = hand.bb ? hand.blinds.big : 0
     }
+    // Mindesterhöhung = letzte volle Erhöhung dieser Runde (anfangs ein Big Blind)
+    minRaise = hand.blinds.big
+    // Wer seit der letzten vollen Erhöhung gehandelt hat – ein zu kleines All-in öffnet für sie nicht neu
     let acted = new Set<string>()
     let lastActor = -1
     for (const a of hand.rounds[r]?.actions ?? []) {
@@ -178,8 +187,12 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
       else if (a.type === 'raise' || a.type === 'allin') {
         put(a.id, a.type === 'allin' ? left(a.id) : (a.to ?? currentBet) - street[a.id])
         if (street[a.id] > currentBet) {
+          const by = street[a.id] - currentBet
           currentBet = street[a.id]
-          acted = new Set()
+          if (by >= minRaise) {
+            minRaise = by
+            acted = new Set()
+          }
         }
       }
       acted.add(a.id)
@@ -188,6 +201,7 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
     }
     // Wer ist dran? Reihum ab dem letzten Akteur (bzw. dem ersten der Runde)
     next = null
+    canRaise = true
     const live = order.filter((id) => !folded.has(id))
     const canAct = live.filter((id) => left(id) > 0)
     const needed = (id: string) => !acted.has(id) || street[id] < currentBet
@@ -200,6 +214,7 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
         if (folded.has(id) || left(id) <= 0) continue
         if (needed(id)) {
           next = id
+          canRaise = !acted.has(id)
           break
         }
       }
@@ -217,6 +232,8 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
     pot: Object.values(paid).reduce((a, b) => a + b, 0),
     street,
     currentBet,
+    minRaiseTo: currentBet + minRaise,
+    canRaise,
     next,
     last,
   }
