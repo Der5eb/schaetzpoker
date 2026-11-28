@@ -208,7 +208,8 @@ export function GameMaster() {
     if (!game) return
     // Wird direkt aus dem Showdown beendet, zählt die letzte Frage noch mit
     const completed = s.phase === 'showdown' ? s.completed + 1 : s.completed
-    const finalChips = chips && s.phase === 'showdown' ? finishHand(chips) : chips
+    // Abbruch mitten in einer Frage: die laufende Hand verfällt, es gelten die Stände davor
+    const finalChips = chips && (s.phase === 'showdown' ? finishHand(chips) : { ...chips, hand: null })
     await save({ finished_at: new Date().toISOString(), state: { ...s, completed, phase: 'ended', chips: finalChips } })
     navigate('/')
   }
@@ -429,6 +430,7 @@ export function GameMaster() {
                 ...(s.reveal < 3
                   ? [{ icon: 'crown' as IconName, label: 'Nur 1 Spieler übrig – Lösung zeigen', onSelect: () => setConfirmDecided(true) }]
                   : []),
+                { icon: 'flag' as IconName, label: 'Spielabend beenden', onSelect: () => setConfirmEnd(true) },
               ]}
             />
             <ConfirmDialog
