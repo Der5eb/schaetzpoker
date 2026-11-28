@@ -39,7 +39,8 @@ Kategorie wählen (Big Blind) → Spielleitung wählt Frage → Frage → Schät
 4. Spielleitung & Sync: QR-Kopplung, Fernbedienung, Video-Steuerung
 5. Später-Liste:
    - Antwortmaske pro Spieler + Zahlenstrahl beim Showdown
-   - ✓ Chip-Stände: pro Setzrunde Einsatz + Aussteiger, beim Showdown Gewinner; App rechnet Blinds, All-in, Nebentöpfe.
+   - ✓ Chip-Stände: Spielleitung tippt Aktionen in Tischreihenfolge (checkt, geht mit, erhöht auf …, steigt aus),
+     beim Showdown den Gewinner; App rechnet wer dran ist, Blinds, All-in, Nebentöpfe.
      Inkl. Sitzreihenfolge, Big-Blind-Anzeige, Ausscheiden. TV zeigt die Stände am unteren Rand
    - ✓ Spieler pro Abend: Die App merkt sich, wer welche Frage kennt, und bietet nur für alle neue Fragen an
    - Statistiken, Backup-Export/-Import

@@ -1,14 +1,20 @@
-// Chip-Stände mitführen, ohne jeden Einsatz einzeln einzutippen.
-// Pro Setzrunde nur: wie viel jeder, der dabei bleibt, insgesamt in dieser Runde gesetzt hat –
-// und wer ausgestiegen ist. Am Ende: wer den Pot gewinnt. Alles Weitere rechnet die App.
+// Chip-Stände mitführen: Die Spielleitung tippt die Aktionen in der Reihenfolge am Tisch an
+// (checkt, geht mit, erhöht auf …, steigt aus) und beim Showdown den Gewinner.
+// Wer dran ist, Pot, All-in und Nebentöpfe rechnet die App aus dem Verlauf.
 
 import type { BlindLevel } from '../lib/types'
 
+export type ActionType = 'fold' | 'check' | 'call' | 'raise' | 'allin'
+
+export interface BetAction {
+  id: string
+  type: ActionType
+  /** Bei „erhöht“: neuer Einsatz in dieser Setzrunde (auf …) */
+  to?: number
+}
+
 export interface BetRound {
-  /** Einsatz pro Spieler in dieser Setzrunde (inkl. Blinds in Runde 1) */
-  bet: number
-  /** Ausgestiegen in dieser Runde → was sie in dieser Runde schon gesetzt hatten */
-  folds: Record<string, number>
+  actions: BetAction[]
 }
 
 export interface Hand {
@@ -98,17 +104,9 @@ export function startHand(chips: Chips, blinds: BlindLevel): Hand {
     blinds,
     sb,
     bb,
-    rounds: [{ bet: blinds.big, folds: {} }],
+    rounds: [],
     winners: [],
   }
-}
-
-export function defaultRound(hand: Hand, index: number): BetRound {
-  return hand.rounds[index] ?? { bet: index === 0 ? hand.blinds.big : 0, folds: {} }
-}
-
-export function blindOf(hand: Hand, id: string): number {
-  return id === hand.bb ? hand.blinds.big : id === hand.sb ? hand.blinds.small : 0
 }
 
 export interface HandView {
@@ -121,37 +119,122 @@ export interface HandView {
   folded: string[]
   allIn: string[]
   pot: number
+  // Die zuletzt durchgerechnete Setzrunde:
+  /** In dieser Setzrunde gesetzt */
+  street: Record<string, number>
+  /** Höchster Einsatz dieser Setzrunde – so viel muss man zum Mitgehen haben */
+  currentBet: number
+  /** Wer jetzt dran ist (null = Setzrunde abgeschlossen) */
+  next: string | null
+  /** Letzte Aktion je Spieler in dieser Setzrunde */
+  last: Record<string, BetAction>
+}
+
+/** Wer in der Hand ist (hatte zu Beginn Chips), in Sitzreihenfolge */
+function inHandOrder(chips: Chips, hand: Hand): string[] {
+  return chips.seats.filter((id) => (hand.before[id] ?? 0) > 0)
 }
 
 /**
- * Rechnet die Hand bis einschließlich Setzrunde `upTo` durch.
- * Wer weniger hat als den Einsatz, geht automatisch all-in.
+ * Spielt die Hand bis einschließlich Setzrunde `upTo` nach.
+ * Runde 1 beginnt links vom Big Blind, spätere Runden links vom Dealer (Platz vor dem Small Blind).
  */
 export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
-  const inHand = chips.seats.filter((id) => (hand.before[id] ?? 0) > 0)
-  const paid: Record<string, number> = Object.fromEntries(inHand.map((id) => [id, 0]))
-  const folded: string[] = []
+  const order = inHandOrder(chips, hand)
+  const n = order.length
+  const paid: Record<string, number> = Object.fromEntries(order.map((id) => [id, 0]))
+  const folded = new Set<string>()
+  const left = (id: string) => (hand.before[id] ?? 0) - paid[id]
+  const sbIdx = hand.sb ? order.indexOf(hand.sb) : -1
+  const bbIdx = hand.bb ? order.indexOf(hand.bb) : -1
+  // Dealer: Platz vor dem Small Blind – zu zweit ist der Small Blind selbst Dealer
+  const dealerIdx = n === 2 ? sbIdx : (sbIdx - 1 + n) % Math.max(1, n)
+
+  let street: Record<string, number> = {}
+  let currentBet = 0
+  let next: string | null = null
+  let last: Record<string, BetAction> = {}
+
   for (let r = 0; r <= upTo; r++) {
-    const round = defaultRound(hand, r)
-    for (const id of inHand) {
-      if (folded.includes(id)) continue
-      const left = (hand.before[id] ?? 0) - paid[id]
-      const blind = r === 0 ? blindOf(hand, id) : 0
-      const put = id in round.folds ? Math.max(round.folds[id], blind) : Math.max(round.bet, blind)
-      paid[id] += Math.max(0, Math.min(put, left))
-      if (id in round.folds) folded.push(id)
+    street = Object.fromEntries(order.map((id) => [id, 0]))
+    last = {}
+    const put = (id: string, amount: number) => {
+      const x = Math.max(0, Math.min(amount, left(id)))
+      paid[id] += x
+      street[id] += x
+    }
+    currentBet = 0
+    if (r === 0) {
+      if (hand.sb) put(hand.sb, hand.blinds.small)
+      if (hand.bb) put(hand.bb, hand.blinds.big)
+      currentBet = hand.bb ? hand.blinds.big : 0
+    }
+    let acted = new Set<string>()
+    let lastActor = -1
+    for (const a of hand.rounds[r]?.actions ?? []) {
+      if (!(a.id in paid) || folded.has(a.id)) continue
+      if (a.type === 'fold') folded.add(a.id)
+      else if (a.type === 'call') put(a.id, currentBet - street[a.id])
+      else if (a.type === 'raise' || a.type === 'allin') {
+        put(a.id, a.type === 'allin' ? left(a.id) : (a.to ?? currentBet) - street[a.id])
+        if (street[a.id] > currentBet) {
+          currentBet = street[a.id]
+          acted = new Set()
+        }
+      }
+      acted.add(a.id)
+      last[a.id] = a
+      lastActor = order.indexOf(a.id)
+    }
+    // Wer ist dran? Reihum ab dem letzten Akteur (bzw. dem ersten der Runde)
+    next = null
+    const live = order.filter((id) => !folded.has(id))
+    const canAct = live.filter((id) => left(id) > 0)
+    const needed = (id: string) => !acted.has(id) || street[id] < currentBet
+    // Allein gegen All-ins (oder ganz allein): nur noch mitgehen, falls nötig
+    const alone = live.length <= 1 || (canAct.length === 1 && street[canAct[0]] >= currentBet)
+    if (!alone && n > 0) {
+      const from = lastActor >= 0 ? lastActor + 1 : r === 0 ? bbIdx + 1 : dealerIdx + 1
+      for (let i = 0; i < n; i++) {
+        const id = order[(from + i + n) % n]
+        if (folded.has(id) || left(id) <= 0) continue
+        if (needed(id)) {
+          next = id
+          break
+        }
+      }
     }
   }
-  const live = inHand.filter((id) => !folded.includes(id))
+  const live = order.filter((id) => !folded.has(id))
   const stacks = { ...chips.stacks }
-  for (const id of inHand) stacks[id] = (hand.before[id] ?? 0) - paid[id]
+  for (const id of order) stacks[id] = left(id)
   return {
     paid,
     stacks,
     live,
-    folded,
+    folded: order.filter((id) => folded.has(id)),
     allIn: live.filter((id) => stacks[id] === 0),
     pot: Object.values(paid).reduce((a, b) => a + b, 0),
+    street,
+    currentBet,
+    next,
+    last,
+  }
+}
+
+/** Aktion als kurzer Text („geht mit“, „erhöht auf 120“ …) */
+export function actionLabel(a: BetAction, street?: number): string {
+  switch (a.type) {
+    case 'fold':
+      return 'steigt aus'
+    case 'check':
+      return 'checkt'
+    case 'call':
+      return 'geht mit'
+    case 'raise':
+      return `erhöht auf ${formatChips(street ?? a.to ?? 0)}`
+    case 'allin':
+      return 'all-in'
   }
 }
 

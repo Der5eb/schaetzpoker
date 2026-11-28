@@ -87,6 +87,10 @@ export interface DisplaySeat {
   /** Keine Chips mehr */
   out: boolean
   blind: 'sb' | 'bb' | null
+  /** Ist gerade dran */
+  toAct: boolean
+  /** Letzte Aktion in dieser Setzrunde („geht mit“, „erhöht auf 120“ …) */
+  action: string | null
   /** Gewinn/Verlust der letzten bzw. gerade entschiedenen Hand */
   delta: number | null
 }

@@ -1,7 +1,7 @@
 import { formatAnswer } from '../lib/format'
 import type { Category, Game, Player, PlayRecord, Question } from '../lib/types'
 import { blindInfo, levelAt } from './blinds'
-import { nextBlinds, settle, viewHand } from './chips'
+import { actionLabel, nextBlinds, settle, viewHand } from './chips'
 import type { DisplayChips, DisplayState, GameState } from './types'
 
 /** Wer am Tisch sitzt und wer welche Frage schon kennt. */
@@ -133,6 +133,8 @@ export function displayChips(state: GameState, players: Player[]): DisplayChips 
         allIn: inHand && !!view?.allIn.includes(id),
         out: stack === 0 && !(inHand && view?.live.includes(id)),
         blind: id === blinds.bb ? 'bb' : id === blinds.sb ? 'sb' : null,
+        toAct: state.phase === 'round' && !state.decided && view?.next === id,
+        action: inHand && state.phase === 'round' && view?.last[id] ? actionLabel(view.last[id], view.street[id]) : null,
         delta: delta?.[id] ?? null,
       }
     }),

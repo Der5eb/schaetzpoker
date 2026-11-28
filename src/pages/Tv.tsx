@@ -826,9 +826,9 @@ function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }
       {c.seats.map((x) => (
         <div
           key={x.id}
-          className={`relative flex min-w-[min(10vw,12rem)] flex-col items-center gap-[0.35vh] rounded-[0.9vw] px-[1vw] pt-[1vh] pb-[0.9vh] ring-1 transition-[opacity,background-color] duration-500 ${
+          className={`relative flex min-w-[min(10vw,12rem)] flex-col items-center gap-[0.35vh] rounded-[0.9vw] px-[1vw] pt-[1vh] pb-[0.9vh] ring-1 transition-[opacity,background-color,translate,box-shadow] duration-500 ${
             x.out ? 'bg-felt-950/30 opacity-40 ring-white/[0.04]' : x.folded ? 'bg-felt-950/40 opacity-50 ring-white/[0.05]' : 'bg-felt-950/65 ring-white/[0.08]'
-          } ${leader != null && x.stack === leader ? 'ring-2 ring-gold-300' : ''}`}
+          } ${(leader != null && x.stack === leader) || x.toAct ? 'ring-2 ring-gold-300' : ''} ${x.toAct ? '-translate-y-[0.6vh] shadow-[0_1.4vh_3vh_-1vh_rgb(209_164_70/0.45)]' : ''}`}
         >
           {x.blind && (
             <span
@@ -849,8 +849,14 @@ function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }
                 {x.delta > 0 ? '+' : '−'}
                 {formatChips(Math.abs(x.delta))}
               </span>
+            ) : x.toAct ? (
+              <span className="rounded-full bg-gold-300 px-[0.6em] text-felt-950">ist dran</span>
             ) : x.allIn ? (
               <span className="rounded-full bg-chip-red px-[0.6em] text-cream-50">All-in</span>
+            ) : x.action ? (
+              <span key={x.action} className={`animate-enter ${x.folded ? 'text-cream-400' : 'text-gold-200'}`}>
+                {x.action}
+              </span>
             ) : x.folded ? (
               <span className="text-cream-400">ausgestiegen</span>
             ) : x.inPot > 0 ? (
