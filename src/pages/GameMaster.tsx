@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useNavigate, useParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
 import { CategoryBadge } from '../components/CategoryBadge'
+import { BetPanel, ChipSettings, WinnerPicker } from '../components/ChipPanels'
 import { ChipMark } from '../components/ChipMark'
 import { Icon, type IconName } from '../components/Icon'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -12,6 +13,7 @@ import { PlayerPicker } from '../components/PlayerPicker'
 import { QuestionModePicker } from '../components/QuestionModePicker'
 import { ActionBar, Fixed } from '../components/Shell'
 import { blindInfo, formatBlinds, validateLevels } from '../game/blinds'
+import { finishHand, pots, settle, startHand, syncSeats, viewHand, type Chips, type Hand } from '../game/chips'
 import { availableQuestions, buildDisplay, isZoomable, mediaKey, type Audience } from '../game/display'
 import { normalizeRoomCode, useGmRoom } from '../game/room'
 import type { GameState, VideoCommand } from '../game/types'
@@ -76,8 +78,8 @@ export function GameMaster() {
   useWakeLock()
 
   const display = useMemo(
-    () => (game ? buildDisplay(game, game.state, categories, questions, audience) : null),
-    [game, categories, questions, audience],
+    () => (game ? buildDisplay(game, game.state, categories, questions, audience, players ?? []) : null),
+    [game, categories, questions, audience, players],
   )
 
   const { tvOnline, sendVideo } = useGmRoom(game?.room_code ?? null, display)
@@ -143,6 +145,32 @@ export function GameMaster() {
   const available = availableQuestions(questions, audience)
   const random = s.questionMode === 'random'
   const toChoice = random ? 'Weiter zur nächsten Frage' : 'Weiter zur Kategorie-Wahl'
+  const chips = s.chips
+  const hand = chips?.hand ?? null
+  const names = (pid: string) => players?.find((p) => p.id === pid)?.name ?? '?'
+  const setHand = (h: Hand) => chips && setState({ chips: { ...chips, hand: h } })
+  const setChips = (c: Chips | null) => setState({ chips: c })
+  // Wer gewinnt, muss beim Showdown feststehen, bevor es weitergeht
+  const handView = chips && hand ? viewHand(chips, hand, 3) : null
+  const settled = !chips || !hand || !handView || pots(handView).length === 0 || !!settle(chips, hand, handView)
+
+  /** Frage am TV stellen – mit Chips beginnt dabei die Hand (Blinds werden gesetzt). */
+  function startQuestion(q: Question) {
+    const patch: Partial<GameState> = { phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false }
+    if (chips && !chips.hand) {
+      const synced = syncSeats(chips, game!.player_ids ?? [])
+      patch.chips = { ...synced, hand: startHand(synced, info.current), last: null }
+    }
+    return setState(patch)
+  }
+
+  /** Nur noch einer dabei: Lösung sofort, übrige Setzrunden entfallen. */
+  function decide() {
+    if (hand && chips) {
+      return setState({ reveal: 3, decided: true, chips: { ...chips, hand: { ...hand, rounds: hand.rounds.slice(0, s.reveal + 1) } } })
+    }
+    return setState({ reveal: 3, decided: true })
+  }
 
   async function endRound() {
     if (!game || !question) return
@@ -165,14 +193,23 @@ export function GameMaster() {
 
   function nextRound() {
     const completed = s.completed + 1
-    setState({ phase: levelUpNext ? 'blinds' : 'category', completed, questionId: null, categoryId: null, reveal: 0, decided: false })
+    setState({
+      phase: levelUpNext ? 'blinds' : 'category',
+      completed,
+      questionId: null,
+      categoryId: null,
+      reveal: 0,
+      decided: false,
+      ...(chips ? { chips: finishHand(chips) } : {}),
+    })
   }
 
   async function finishGame() {
     if (!game) return
     // Wird direkt aus dem Showdown beendet, zählt die letzte Frage noch mit
     const completed = s.phase === 'showdown' ? s.completed + 1 : s.completed
-    await save({ finished_at: new Date().toISOString(), state: { ...s, completed, phase: 'ended' } })
+    const finalChips = chips && s.phase === 'showdown' ? finishHand(chips) : chips
+    await save({ finished_at: new Date().toISOString(), state: { ...s, completed, phase: 'ended', chips: finalChips } })
     navigate('/')
   }
 
@@ -253,7 +290,7 @@ export function GameMaster() {
           available={available}
           drawnId={s.questionId}
           onDraw={(questionId) => setState({ questionId })}
-          onStart={(q) => setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })}
+          onStart={startQuestion}
         />
       )}
 
@@ -262,8 +299,9 @@ export function GameMaster() {
           categories={categories}
           available={available}
           picked={s.categoryId}
+          bigBlind={display.chips?.bigBlind ?? null}
           onPick={(categoryId) => setState({ categoryId })}
-          onStart={(q) => setState({ phase: 'round', categoryId: q.category_id, questionId: q.id, reveal: 0, decided: false })}
+          onStart={startQuestion}
         />
       )}
 
@@ -315,6 +353,10 @@ export function GameMaster() {
               ))}
             </ol>
             <h2 className="mt-1 font-display text-2xl leading-tight font-extrabold text-cream-50">{question.title}</h2>
+
+            {chips && hand && !s.decided && (
+              <BetPanel chips={chips} hand={hand} round={s.reveal} names={names} onChange={setHand} onDecide={decide} />
+            )}
 
             {/* Bereits Gezeigtes: je eine Zeile, aufklappbar */}
             {past.map((i) => (
@@ -396,7 +438,7 @@ export function GameMaster() {
               onCancel={() => setConfirmDecided(false)}
               onConfirm={() => {
                 setConfirmDecided(false)
-                setState({ reveal: 3, decided: true })
+                decide()
               }}
             >
               Nur noch ein Spieler ist dabei – die übrigen Hinweise werden übersprungen.
@@ -422,7 +464,8 @@ export function GameMaster() {
           <h2 className="font-display text-2xl leading-tight font-extrabold text-cream-50">{question.title}</h2>
           <p className="font-display text-5xl font-black text-gold-200 tabular-nums">{formatAnswer(question)}</p>
           <p className="max-w-[32ch] text-sm text-cream-300">Alle, die noch dabei sind, decken ihre Schätzung auf. Wer am nächsten dran ist, gewinnt den Pot.</p>
-          <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" onClick={nextRound}>
+          {chips && hand && <WinnerPicker chips={chips} hand={hand} names={names} onChange={setHand} />}
+          <button type="button" className="btn btn-primary mt-4 w-full py-4 text-lg" disabled={!settled} onClick={nextRound}>
             {levelUpNext ? 'Weiter: Blinds steigen' : toChoice} <Icon name="arrow" weight="bold" className="size-5" />
           </button>
         </div>
@@ -468,10 +511,26 @@ export function GameMaster() {
                 <PlayerPicker
                   players={players}
                   selected={(game.player_ids ?? []).filter((pid) => players.some((p) => p.id === pid))}
-                  onChange={(ids) => save({ player_ids: ids })}
+                  onChange={(ids) => save({ player_ids: ids, state: { ...s, chips: chips && syncSeats(chips, ids) } })}
                   onPlayersChange={setPlayers}
                 />
               </div>
+            </Collapsible>
+          )}
+          {players && (
+            <Collapsible
+              title={chips ? `Chip-Stände (${chips.seats.length})` : 'Chip-Stände mitführen'}
+              icon="chip"
+              defaultOpen={s.phase === 'lobby' && !!chips}
+            >
+              <ChipSettings
+                chips={chips}
+                playerIds={game.player_ids ?? []}
+                names={names}
+                bigBlind={info.current.big}
+                locked={!!hand}
+                onChange={setChips}
+              />
             </Collapsible>
           )}
           <Collapsible title={random ? 'Fragen: zufällig' : 'Fragen: Big Blind wählt'} icon={random ? 'shuffle' : 'crown'}>
@@ -585,9 +644,9 @@ function FoldRow({ icon, label, summary, muted, children }: { icon: IconName; la
   )
 }
 
-function Collapsible({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
+function Collapsible({ title, icon, defaultOpen, children }: { title: string; icon: IconName; defaultOpen?: boolean; children: ReactNode }) {
   return (
-    <details className="card group overflow-hidden">
+    <details className="card group overflow-hidden" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 text-cream-100 [&::-webkit-details-marker]:hidden">
         <Icon name={icon} weight="duotone" className="size-5 text-gold-300" />
         <span className="flex-1 font-medium">{title}</span>
@@ -625,12 +684,14 @@ function CategoryStep({
   categories,
   available,
   picked,
+  bigBlind,
   onPick,
   onStart,
 }: {
   categories: Category[]
   available: Question[]
   picked: string | null
+  bigBlind: string | null
   onPick: (id: string | null) => void
   onStart: (q: Question) => void
 }) {
@@ -728,7 +789,8 @@ function CategoryStep({
   return (
     <div className="animate-enter flex flex-col gap-4">
       <p className="flex items-center gap-2 text-cream-200">
-        <Icon name="crown" weight="duotone" className="size-5 text-gold-300" /> Der Big Blind wählt eine Kategorie
+        <Icon name="crown" weight="duotone" className="size-5 text-gold-300" />{' '}
+        {bigBlind ? `${bigBlind} (Big Blind) wählt eine Kategorie` : 'Der Big Blind wählt eine Kategorie'}
       </p>
       {withQuestions.length === 0 && <p className="text-gold-200">Keine spielbereiten Fragen mehr übrig.</p>}
       <ul className="grid grid-cols-2 gap-2.5">

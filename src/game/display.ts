@@ -1,7 +1,8 @@
 import { formatAnswer } from '../lib/format'
-import type { Category, Game, PlayRecord, Question } from '../lib/types'
+import type { Category, Game, Player, PlayRecord, Question } from '../lib/types'
 import { blindInfo, levelAt } from './blinds'
-import type { DisplayState, GameState } from './types'
+import { nextBlinds, settle, viewHand } from './chips'
+import type { DisplayChips, DisplayState, GameState } from './types'
 
 /** Wer am Tisch sitzt und wer welche Frage schon kennt. */
 export interface Audience {
@@ -47,6 +48,7 @@ export function buildDisplay(
   categories: Category[],
   questions: Question[],
   audience?: Audience,
+  players: Player[] = [],
 ): DisplayState {
   const info = blindInfo(game.blind_levels, game.questions_per_level, state.completed)
   const available = availableQuestions(questions, audience)
@@ -101,6 +103,39 @@ export function buildDisplay(
             .map((x) => ({ title: x.title, answer: formatAnswer(x), value: x.answer }))
         : [],
     focus: q && state.focus && isZoomable(state.focus, reveal) ? state.focus : null,
+    chips: displayChips(state, players),
+  }
+}
+
+/** Chip-Stände für den TV: laufende Hand live mitgerechnet, nach dem Showdown mit Gewinn/Verlust. */
+export function displayChips(state: GameState, players: Player[]): DisplayChips | null {
+  const chips = state.chips
+  if (!chips || chips.seats.length === 0) return null
+  const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?'
+  const hand = chips.hand
+  const inHand = !!hand && (state.phase === 'round' || state.phase === 'showdown')
+  const view = hand ? viewHand(chips, hand, state.phase === 'showdown' ? 3 : state.reveal) : null
+  const result = hand && view && state.phase === 'showdown' ? settle(chips, hand, view) : null
+  const blinds = hand ? { sb: hand.sb, bb: hand.bb } : nextBlinds(chips)
+  const delta = result?.delta ?? (!hand ? chips.last : null)
+  return {
+    pot: inHand && view ? view.pot : 0,
+    inHand,
+    bigBlind: blinds.bb ? name(blinds.bb) : null,
+    seats: chips.seats.map((id) => {
+      const stack = result?.stacks[id] ?? (inHand && view ? view.stacks[id] : chips.stacks[id]) ?? 0
+      return {
+        id,
+        name: name(id),
+        stack,
+        inPot: inHand && view ? (view.paid[id] ?? 0) : 0,
+        folded: inHand && !!view?.folded.includes(id),
+        allIn: inHand && !!view?.allIn.includes(id),
+        out: stack === 0 && !(inHand && view?.live.includes(id)),
+        blind: id === blinds.bb ? 'bb' : id === blinds.sb ? 'sb' : null,
+        delta: delta?.[id] ?? null,
+      }
+    }),
   }
 }
 

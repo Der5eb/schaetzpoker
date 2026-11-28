@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BlindEditor } from '../components/BlindEditor'
+import { ChipInput } from '../components/ChipPanels'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { PlayerPicker } from '../components/PlayerPicker'
 import { QuestionModePicker } from '../components/QuestionModePicker'
 import { ActionBar, SectionTitle, Shell } from '../components/Shell'
 import { defaultLevels, validateLevels } from '../game/blinds'
+import { loadStartChips, newChips, saveStartChips } from '../game/chips'
 import { availableQuestions } from '../game/display'
 import { newRoomCode, normalizeRoomCode } from '../game/room'
 import type { QuestionMode } from '../game/types'
@@ -14,6 +16,7 @@ import { createGame, fetchLastPlayerIds, fetchOpenGame, fetchPlayers, fetchPlayH
 import type { BlindLevel, Game, Player, PlayRecord, Question } from '../lib/types'
 
 const MODE_KEY = 'schaetzpoker:fragen-modus'
+const CHIPS_KEY = 'schaetzpoker:chips-an'
 
 function loadMode(): QuestionMode {
   try {
@@ -41,6 +44,14 @@ export function GameSetup() {
   const [levels, setLevels] = useState<BlindLevel[]>(() => defaultLevels(10, 20, 6))
   const [perLevel, setPerLevel] = useState(3)
   const [mode, setMode] = useState<QuestionMode>(loadMode)
+  const [trackChips, setTrackChips] = useState(() => {
+    try {
+      return localStorage.getItem(CHIPS_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const [startChips, setStartChips] = useState(() => loadStartChips() ?? 1000)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<null | 'new' | 'finish'>(null)
@@ -78,6 +89,8 @@ export function GameSetup() {
     setOpenGame(null)
   }
 
+  const chipsOn = trackChips && playerIds.length >= 2 && startChips > 0
+
   async function start() {
     setBusy(true)
     setError(null)
@@ -90,7 +103,14 @@ export function GameSetup() {
         questions_per_level: perLevel,
         player_ids: playerIds,
         questionMode: mode,
+        chips: chipsOn ? newChips(playerIds, startChips) : null,
       })
+      if (chipsOn) saveStartChips(startChips)
+      try {
+        localStorage.setItem(CHIPS_KEY, trackChips ? '1' : '0')
+      } catch {
+        /* egal */
+      }
       try {
         localStorage.setItem(MODE_KEY, mode)
       } catch {
@@ -176,6 +196,34 @@ export function GameSetup() {
         <section className="flex flex-col gap-3">
           <SectionTitle>Fragen</SectionTitle>
           <QuestionModePicker value={mode} onChange={setMode} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Chips</SectionTitle>
+          <label className="card flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3">
+            <input
+              type="checkbox"
+              className="size-5 accent-[var(--color-gold-300)]"
+              checked={trackChips}
+              onChange={(e) => setTrackChips(e.target.checked)}
+            />
+            <span className="flex flex-1 flex-col">
+              <span className="font-medium text-cream-50">Chip-Stände mitführen</span>
+              <span className="text-sm text-cream-300">Pro Setzrunde nur Einsatz und Aussteiger antippen – der TV zeigt, wer wie viel hat.</span>
+            </span>
+          </label>
+          {trackChips && (
+            <>
+              <label className="flex items-center justify-between gap-3">
+                <span className="label">Startchips pro Spieler</span>
+                <ChipInput value={startChips} onChange={setStartChips} label="Startchips pro Spieler" className="w-32 py-2 text-xl" />
+              </label>
+              <p className="text-xs text-cream-400">
+                = {Math.floor(startChips / Math.max(1, levels[0]?.big ?? 1))} Big Blinds.{' '}
+                {playerIds.length < 2 ? 'Dafür oben mindestens zwei Spieler auswählen.' : 'Die Sitzreihenfolge legst du gleich vor dem Start fest.'}
+              </p>
+            </>
+          )}
         </section>
 
         <section className="flex flex-col gap-4">

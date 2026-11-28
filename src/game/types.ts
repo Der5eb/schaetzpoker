@@ -1,4 +1,5 @@
 import type { BlindLevel, Media } from '../lib/types'
+import type { Chips } from './chips'
 
 export type Phase = 'lobby' | 'category' | 'round' | 'showdown' | 'blinds' | 'ended'
 
@@ -20,6 +21,8 @@ export interface GameState {
   focus: string | null
   /** Wie die nächste Frage gefunden wird – wird vor Spielbeginn festgelegt */
   questionMode: QuestionMode
+  /** Chip-Stände der Spieler – null = werden nicht mitgeführt */
+  chips: Chips | null
 }
 
 export const initialState: GameState = {
@@ -31,6 +34,7 @@ export const initialState: GameState = {
   decided: false,
   focus: null,
   questionMode: 'pick',
+  chips: null,
 }
 
 export interface DisplayBlock {
@@ -68,6 +72,32 @@ export interface DisplayState {
   startedAt: string
   /** Zum Abschluss: alle an diesem Abend gespielten Fragen mit Lösung */
   recap: { title: string; answer: string; value: number | null }[]
+  /** Chip-Stände am Tisch (null = werden nicht mitgeführt) */
+  chips: DisplayChips | null
+}
+
+export interface DisplaySeat {
+  id: string
+  name: string
+  stack: number
+  /** In dieser Hand gesetzt */
+  inPot: number
+  folded: boolean
+  allIn: boolean
+  /** Keine Chips mehr */
+  out: boolean
+  blind: 'sb' | 'bb' | null
+  /** Gewinn/Verlust der letzten bzw. gerade entschiedenen Hand */
+  delta: number | null
+}
+
+export interface DisplayChips {
+  seats: DisplaySeat[]
+  pot: number
+  /** Gerade eine Hand am Laufen (Pot anzeigen) */
+  inHand: boolean
+  /** Wer als Nächstes (bzw. gerade) den Big Blind zahlt */
+  bigBlind: string | null
 }
 
 export type VideoCommand = { key: string; cmd: 'play' | 'pause' | 'restart' }

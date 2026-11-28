@@ -7,7 +7,8 @@ import { Qr } from '../components/Qr'
 import { formatBlinds } from '../game/blinds'
 import { mediaKey } from '../game/display'
 import { newRoomCode, useTvRoom } from '../game/room'
-import type { DisplayState, VideoCommand } from '../game/types'
+import { formatChips } from '../game/chips'
+import type { DisplayChips, DisplayState, VideoCommand } from '../game/types'
 import { activateVideos, controlVideo, onSoundState, type VideoRegistry } from '../game/video'
 
 const STEPS: { label: string; icon: IconName }[] = [
@@ -93,7 +94,10 @@ export function Tv() {
 
       {display && display.phase !== 'ended' && display.phase !== 'lobby' && <TopBar d={display} />}
 
-      <main key={sceneKey} className="animate-focus-in relative flex min-h-0 flex-1 flex-col px-[5vw] pt-[2vh] pb-[6vh]">
+      <main
+        key={sceneKey}
+        className={`animate-focus-in relative flex min-h-0 flex-1 flex-col px-[5vw] pt-[2vh] ${display?.chips ? 'pb-[2vh]' : 'pb-[6vh]'}`}
+      >
         {!display && <Waiting code={code} pairUrl={pairUrl} />}
         {display?.phase === 'lobby' && <Lobby d={display} />}
         {display?.phase === 'category' && <CategoryPick d={display} />}
@@ -102,6 +106,8 @@ export function Tv() {
         {display?.phase === 'blinds' && <BlindsUp d={display} />}
         {display?.phase === 'ended' && <Ended d={display} />}
       </main>
+
+      {display?.chips && <ChipBar c={display.chips} phase={display.phase} />}
 
       {/* Abdunklung hinter einem vergrößerten Bild oder Video */}
       <div
@@ -494,7 +500,7 @@ function CategoryPick({ d }: { d: DisplayState }) {
             </>
           ) : (
             <>
-              Der Big Blind wählt <em className="font-normal text-gold-200 italic">eine Kategorie</em>
+              {d.chips?.bigBlind ?? 'Der Big Blind'} wählt <em className="font-normal text-gold-200 italic">eine Kategorie</em>
             </>
           )}
         </h1>
@@ -802,6 +808,59 @@ function Ended({ d }: { d: DisplayState }) {
           </ol>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Chip-Stände am unteren Rand: Sitzreihenfolge, Blinds, laufender Pot, Gewinn der letzten Hand. */
+function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }) {
+  const leader = phase === 'ended' ? Math.max(...c.seats.map((x) => x.stack)) : null
+  return (
+    <div className="relative z-10 flex items-end justify-center gap-[1.2vw] px-[3vw] pb-[4.6vh] text-[clamp(0.85rem,1.3vw,1.8rem)]">
+      {c.inHand && (
+        <div className="flex flex-col items-center gap-[0.4vh] self-stretch justify-center rounded-[0.9vw] bg-gold-300 px-[1.3vw] py-[1vh] text-felt-950 shadow-[0_1vh_2.4vh_-1vh_rgb(0_0_0/0.8)]">
+          <span className="text-[0.8em] font-semibold">Pot</span>
+          <span key={c.pot} className="animate-enter font-display text-[1.7em] leading-none font-black tabular-nums">{formatChips(c.pot)}</span>
+        </div>
+      )}
+      {c.seats.map((x) => (
+        <div
+          key={x.id}
+          className={`relative flex min-w-[min(10vw,12rem)] flex-col items-center gap-[0.35vh] rounded-[0.9vw] px-[1vw] pt-[1vh] pb-[0.9vh] ring-1 transition-[opacity,background-color] duration-500 ${
+            x.out ? 'bg-felt-950/30 opacity-40 ring-white/[0.04]' : x.folded ? 'bg-felt-950/40 opacity-50 ring-white/[0.05]' : 'bg-felt-950/65 ring-white/[0.08]'
+          } ${leader != null && x.stack === leader ? 'ring-2 ring-gold-300' : ''}`}
+        >
+          {x.blind && (
+            <span
+              className={`absolute -top-[1.1em] rounded-full px-[0.6em] py-[0.15em] text-[0.75em] font-bold shadow-md ${
+                x.blind === 'bb' ? 'bg-gold-300 text-felt-950' : 'bg-cream-100 text-felt-950'
+              }`}
+            >
+              {x.blind === 'bb' ? 'Big Blind' : 'Small Blind'}
+            </span>
+          )}
+          <span className="max-w-[12vw] truncate font-medium text-cream-200">{x.name}</span>
+          <span className={`font-display text-[1.55em] leading-none font-extrabold tabular-nums ${x.out ? 'text-cream-400 line-through' : 'text-cream-50'}`}>
+            {formatChips(x.stack)}
+          </span>
+          <span className="flex h-[1.3em] items-center text-[0.8em] font-semibold tabular-nums">
+            {x.delta != null && x.delta !== 0 ? (
+              <span key={`d-${x.delta}`} className={`animate-enter ${x.delta > 0 ? 'text-ok' : 'text-danger'}`}>
+                {x.delta > 0 ? '+' : '−'}
+                {formatChips(Math.abs(x.delta))}
+              </span>
+            ) : x.allIn ? (
+              <span className="rounded-full bg-chip-red px-[0.6em] text-cream-50">All-in</span>
+            ) : x.folded ? (
+              <span className="text-cream-400">ausgestiegen</span>
+            ) : x.inPot > 0 ? (
+              <span className="text-gold-200">im Pot {formatChips(x.inPot)}</span>
+            ) : x.out ? (
+              <span className="text-cream-400">ausgeschieden</span>
+            ) : null}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
