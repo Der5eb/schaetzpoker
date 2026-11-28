@@ -282,7 +282,7 @@ function Table({ head, rows }: { head: [string, string]; rows: [string, string][
 
 function Example({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl border-l-2 border-gold-300 bg-gold-400/8 px-3.5 py-2.5 text-sm text-cream-100">
+    <div className="rounded-xl bg-gold-400/8 px-3.5 py-2.5 text-sm text-cream-100 ring-1 ring-gold-400/25">
       <span className="mb-0.5 block text-xs font-semibold text-gold-200">Beispiel</span>
       {children}
     </div>
