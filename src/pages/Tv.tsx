@@ -812,7 +812,7 @@ function Ended({ d }: { d: DisplayState }) {
   )
 }
 
-/** Chip-Stände am unteren Rand: Sitzreihenfolge, Blinds, laufender Pot, Gewinn der letzten Hand. */
+/** Chip-Stände am unteren Rand: während der Frage der Einsatz im Pot, sonst der Stand; nach dem Showdown Gewinn/Verlust. */
 function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }) {
   const leader = phase === 'ended' ? Math.max(...c.seats.map((x) => x.stack)) : null
   return (
@@ -840,9 +840,19 @@ function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }
             </span>
           )}
           <span className="max-w-[12vw] truncate font-medium text-cream-200">{x.name}</span>
-          <span className={`font-display text-[1.55em] leading-none font-extrabold tabular-nums ${x.out ? 'text-cream-400 line-through' : 'text-cream-50'}`}>
-            {formatChips(x.stack)}
-          </span>
+          {c.inHand && x.delta == null && !x.out ? (
+            // Während der Frage: groß, was die Person im Pot hat – der Stand klein darunter
+            <>
+              <span key={x.inPot} className="animate-enter font-display text-[1.55em] leading-none font-extrabold text-gold-200 tabular-nums">
+                {formatChips(x.inPot)}
+              </span>
+              <span className="text-[0.75em] text-cream-400 tabular-nums">Stand {formatChips(x.stack)}</span>
+            </>
+          ) : (
+            <span className={`font-display text-[1.55em] leading-none font-extrabold tabular-nums ${x.out ? 'text-cream-400 line-through' : 'text-cream-50'}`}>
+              {formatChips(x.stack)}
+            </span>
+          )}
           <span className="flex h-[1.3em] items-center text-[0.8em] font-semibold tabular-nums">
             {x.delta != null && x.delta !== 0 ? (
               <span key={`d-${x.delta}`} className={`animate-enter ${x.delta > 0 ? 'text-ok' : 'text-danger'}`}>
@@ -859,8 +869,6 @@ function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }
               </span>
             ) : x.folded ? (
               <span className="text-cream-400">ausgestiegen</span>
-            ) : x.inPot > 0 ? (
-              <span className="text-gold-200">im Pot {formatChips(x.inPot)}</span>
             ) : x.out ? (
               <span className="text-cream-400">ausgeschieden</span>
             ) : null}
