@@ -12,6 +12,7 @@ const rows: { to: string; icon: IconName; title: string; text: string }[] = [
   { to: '/bibliothek', icon: 'cards', title: 'Bibliothek', text: 'Fragen und Kategorien verwalten' },
   { to: '/spiel', icon: 'chip', title: 'Spielabend', text: 'Abend starten und TV koppeln' },
   { to: '/tv', icon: 'tv', title: 'TV-Ansicht', text: 'Auf dem Fernseher öffnen' },
+  { to: '/regeln', icon: 'book', title: 'Regeln', text: 'Texas Hold’em mit Schätzfragen – zum Nachlesen' },
 ]
 
 export function Home() {

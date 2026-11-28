@@ -1,6 +1,7 @@
 import {
   ArrowCounterClockwise,
   ArrowRight,
+  BookOpenText,
   CaretDown,
   CaretLeft,
   CaretRight,
@@ -82,6 +83,7 @@ const icons = {
   users: UsersThree,
   key: Key,
   user: UserCircle,
+  book: BookOpenText,
 } satisfies Record<string, PhosphorIcon>
 
 export type IconName = keyof typeof icons

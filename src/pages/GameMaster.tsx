@@ -430,6 +430,7 @@ export function GameMaster() {
                 ...(s.reveal < 3
                   ? [{ icon: 'crown' as IconName, label: 'Nur 1 Spieler übrig – Lösung zeigen', onSelect: () => setConfirmDecided(true) }]
                   : []),
+                { icon: 'book' as IconName, label: 'Regeln nachlesen', onSelect: openRules },
                 { icon: 'flag' as IconName, label: 'Spielabend beenden', onSelect: () => setConfirmEnd(true) },
               ]}
             />
@@ -550,9 +551,14 @@ export function GameMaster() {
           <Collapsible title="TV neu verbinden" icon="tv">
             <RoomCodeForm current={game.room_code} onSave={(code) => save({ room_code: code })} />
           </Collapsible>
-          <button type="button" className="btn btn-danger mt-4 min-h-11 self-start py-2.5 text-sm" onClick={() => setConfirmEnd(true)}>
-            <Icon name="flag" className="size-4" /> Spielabend beenden
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" className="btn btn-ghost min-h-11 py-2.5 text-sm" onClick={openRules}>
+              <Icon name="book" className="size-4" /> Regeln
+            </button>
+            <button type="button" className="btn btn-danger min-h-11 py-2.5 text-sm" onClick={() => setConfirmEnd(true)}>
+              <Icon name="flag" className="size-4" /> Spielabend beenden
+            </button>
+          </div>
         </div>
       )}
     </Frame>
@@ -560,6 +566,11 @@ export function GameMaster() {
 }
 
 // ---------------------------------------------------------------------------
+
+/** Regeln in neuem Tab – die Spielleitung bleibt offen */
+function openRules() {
+  window.open(`${location.pathname}#/regeln`, '_blank', 'noopener')
+}
 
 function Frame({ children }: { children: ReactNode }) {
   return (

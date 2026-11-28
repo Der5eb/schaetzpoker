@@ -10,6 +10,7 @@ import { Library } from './pages/Library'
 import { Login } from './pages/Login'
 import { Password } from './pages/Password'
 import { QuestionEditor } from './pages/QuestionEditor'
+import { Rules } from './pages/Rules'
 import { SetupMissing } from './pages/SetupMissing'
 import { Tv } from './pages/Tv'
 
@@ -33,6 +34,8 @@ export default function App() {
           <Route path="/leitung/:id" element={<RequireAuth><GameMaster /></RequireAuth>} />
           {/* Der TV braucht kein Login: Er bekommt Inhalte live von der Spielleitung. */}
           <Route path="/tv" element={<Tv />} />
+          {/* Regeln auch ohne Login – zum Weitergeben an Mitspieler */}
+          <Route path="/regeln" element={<Rules />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
