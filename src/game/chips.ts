@@ -96,6 +96,24 @@ export function nextBlinds(chips: Chips): { sb: string | null; bb: string | null
   return { sb, bb: chips.seats[bbIndex] }
 }
 
+/**
+ * Dealer Button: der Platz vor dem Small Blind (unter denen, die mitspielen).
+ * Zu zweit ist der Small Blind selbst Dealer.
+ */
+export function dealerOf(order: string[], sb: string | null): string | null {
+  const i = sb ? order.indexOf(sb) : -1
+  if (i < 0) return null
+  return order.length === 2 ? sb : order[(i - 1 + order.length) % order.length]
+}
+
+/** Dealer und Blinds der laufenden bzw. nächsten Hand */
+export function tablePositions(chips: Chips): { dealer: string | null; sb: string | null; bb: string | null } {
+  const hand = chips.hand
+  const { sb, bb } = hand ? { sb: hand.sb, bb: hand.bb } : nextBlinds(chips)
+  const order = hand ? chips.seats.filter((id) => (hand.before[id] ?? 0) > 0) : activeSeats(chips)
+  return { dealer: dealerOf(order, sb), sb, bb }
+}
+
 /** Neue Hand: Blinds bestimmen und setzen. */
 export function startHand(chips: Chips, blinds: BlindLevel): Hand {
   const { sb, bb } = nextBlinds(chips)
@@ -149,10 +167,8 @@ export function viewHand(chips: Chips, hand: Hand, upTo: number): HandView {
   const paid: Record<string, number> = Object.fromEntries(order.map((id) => [id, 0]))
   const folded = new Set<string>()
   const left = (id: string) => (hand.before[id] ?? 0) - paid[id]
-  const sbIdx = hand.sb ? order.indexOf(hand.sb) : -1
   const bbIdx = hand.bb ? order.indexOf(hand.bb) : -1
-  // Dealer: Platz vor dem Small Blind – zu zweit ist der Small Blind selbst Dealer
-  const dealerIdx = n === 2 ? sbIdx : (sbIdx - 1 + n) % Math.max(1, n)
+  const dealerIdx = order.indexOf(dealerOf(order, hand.sb) ?? '')
 
   let street: Record<string, number> = {}
   let currentBet = 0

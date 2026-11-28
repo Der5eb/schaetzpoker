@@ -87,6 +87,8 @@ export interface DisplaySeat {
   /** Keine Chips mehr */
   out: boolean
   blind: 'sb' | 'bb' | null
+  /** Hat den Dealer Button */
+  dealer: boolean
   /** Ist gerade dran */
   toAct: boolean
   /** Letzte Aktion in dieser Setzrunde („geht mit“, „erhöht auf 120“ …) */

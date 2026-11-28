@@ -839,6 +839,14 @@ function ChipBar({ c, phase }: { c: DisplayChips; phase: DisplayState['phase'] }
               {x.blind === 'bb' ? 'Big Blind' : 'Small Blind'}
             </span>
           )}
+          {x.dealer && (
+            <span
+              aria-label="Dealer Button"
+              className="absolute -top-[0.9em] -right-[0.9em] grid size-[2em] place-items-center rounded-full bg-[#111] font-display text-[0.9em] font-black text-white shadow-[0_0.4vh_1vh_rgb(0_0_0/0.7)] ring-2 ring-white/30"
+            >
+              D
+            </span>
+          )}
           <span className="max-w-[12vw] truncate font-medium text-cream-200">{x.name}</span>
           {c.inHand && x.delta == null && !x.out ? (
             // Während der Frage: groß, was die Person im Pot hat – der Stand klein darunter

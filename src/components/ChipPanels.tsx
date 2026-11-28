@@ -2,9 +2,10 @@ import { useState } from 'react'
 import {
   actionLabel,
   formatChips,
+  tablePositions,
   loadStartChips,
   newChips,
-  nextBlinds,
+  dealerOf,
   pots,
   potWinners,
   saveStartChips,
@@ -51,6 +52,19 @@ export function ChipInput({
       }}
       onBlur={() => setDraft(null)}
     />
+  )
+}
+
+/** Dealer Button: schwarze Scheibe mit „D“ – wie im Pokerkoffer */
+export function DealerTag() {
+  return (
+    <span
+      aria-label="Dealer Button"
+      title="Dealer Button"
+      className="grid size-5 shrink-0 place-items-center rounded-full bg-[#111] text-[0.65rem] leading-none font-black text-white shadow-[0_1px_2px_rgb(0_0_0/0.6)] ring-1 ring-white/25"
+    >
+      D
+    </span>
   )
 }
 
@@ -145,6 +159,10 @@ export function BetPanel({
     .slice(0, 3)
   const amountOk = amount >= minTo || amount >= maxTo
   const onlyOne = view.live.length === 1
+  const dealer = dealerOf(
+    chips.seats.filter((id) => (hand.before[id] ?? 0) > 0),
+    hand.sb,
+  )
   const blindOf = (id: string) => (round === 0 ? (id === hand.bb ? 'bb' : id === hand.sb ? 'sb' : null) : null)
 
   return (
@@ -162,6 +180,7 @@ export function BetPanel({
             <span className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-gold-200">Am Zug</span>
               <b className="font-display text-xl font-extrabold text-cream-50">{names(next)}</b>
+              {next === dealer && <DealerTag />}
               {blindOf(next) && <BlindTag kind={blindOf(next)!} />}
             </span>
             <span className="text-xs text-cream-300 tabular-nums">hat {formatChips(stack)}</span>
@@ -271,6 +290,7 @@ export function BetPanel({
               className={`flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-sm ${id === next ? 'bg-gold-400/10' : ''} ${out ? 'text-cream-400' : 'text-cream-100'}`}
             >
               <span className={`min-w-0 flex-1 truncate ${out ? 'line-through' : ''}`}>{names(id)}</span>
+              {id === dealer && <DealerTag />}
               {blind && <BlindTag kind={blind} />}
               <span className="w-28 text-right text-xs text-cream-300">
                 {id === next ? <span className="font-semibold text-gold-200">ist dran</span> : a ? actionLabel(a, view.street[id]) : view.allIn.includes(id) ? 'all-in' : ''}
@@ -423,7 +443,7 @@ export function ChipSettings({
     )
   }
 
-  const { bb } = nextBlinds(chips)
+  const { bb, dealer } = tablePositions(chips)
   const total = totalChips(chips)
   const expected = chips.start * chips.seats.length
 
@@ -449,6 +469,7 @@ export function ChipSettings({
             <span className="w-5 text-xs text-cream-400 tabular-nums">{i + 1}.</span>
             <span className="flex min-w-0 flex-1 items-center gap-1.5">
               <span className="truncate font-medium text-cream-50">{names(id)}</span>
+              {id === dealer && <DealerTag />}
               {id === bb && <BlindTag kind="bb" />}
             </span>
             <ChipInput

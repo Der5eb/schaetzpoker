@@ -45,7 +45,7 @@ export function Rules() {
         <Chapter icon="crown" title="Dealer und Blinds" summary="Wer muss vorab setzen?">
           <P>
             Damit in jeder Runde etwas im Pot liegt, gibt es zwei Pflichteinsätze, die <b>Blinds</b>. Ein Platz am Tisch ist der{' '}
-            <b>Dealer</b> (Knopf):
+            <b>Dealer</b> – markiert mit dem <b>Dealer Button</b> (schwarze Scheibe mit „D“):
           </P>
           <List
             items={[
@@ -55,7 +55,7 @@ export function Rules() {
               <>
                 Links davon setzt der <b>Big Blind</b> (meist doppelt so viel).
               </>,
-              'Nach jeder Frage wandern Dealer und Blinds einen Platz weiter im Uhrzeigersinn.',
+              'Nach jeder Frage wandern Dealer Button und Blinds einen Platz weiter im Uhrzeigersinn.',
               'Nach einer festen Zahl von Fragen steigen die Blinds – so wird das Spiel mit der Zeit schneller.',
             ]}
           />
@@ -111,7 +111,7 @@ export function Rules() {
           </Note>
         </Chapter>
 
-        <Chapter icon="stack" title="Wie viel darf man setzen?" summary="No Limit und Mindesterhöhung">
+        <Chapter icon="stack" title="Wie viel darf man setzen?" summary="No Limit, Mindesterhöhung, wie oft">
           <List
             items={[
               <>
@@ -129,6 +129,10 @@ export function Rules() {
             Big Blind 20. Anna erhöht auf 60 – also um 40. Wer jetzt erhöhen will, muss auf mindestens 100 gehen (60 + 40).
           </Example>
           <P>
+            <b>Wie oft?</b> Im No Limit so oft man will – es gibt keine Höchstzahl an Erhöhungen. Jede Erhöhung muss nur mindestens so groß
+            sein wie die vorige. (Begrenzt ist die Zahl nur bei „Limit Poker“, meist auf einen Einsatz plus drei Erhöhungen pro Runde.)
+          </P>
+          <P>
             Wer erhöht, sagt den Betrag an („Ich erhöhe auf 100“) oder schiebt die Chips in einem Zug nach vorn. Nachlegen, nachdem man die
             Reaktion der anderen gesehen hat, gilt nicht.
           </P>
@@ -138,7 +142,7 @@ export function Rules() {
         <Chapter icon="diamond" title="All-in und Nebentöpfe" summary="Wenn jemand zu wenig Chips hat">
           <P>
             Wer nicht genug Chips zum Mitgehen hat, kann trotzdem all-in gehen. Gewinnen kann man dann aber von jedem anderen nur so viel, wie
-            man selbst gesetzt hat. Der Rest kommt in einen <b>Nebentopf</b>, um den nur die anderen spielen.
+            man selbst gesetzt hat. Alles, was die anderen darüber hinaus setzen, kommt in einen <b>Nebentopf</b> – darum spielen nur sie.
           </P>
           <Example>
             Anna hat nur 50 und geht all-in. Ben und Clara setzen je 200.
@@ -148,9 +152,25 @@ export function Rules() {
             Nebentopf: 2 × 150 = 300 – darum spielen nur Ben und Clara.
           </Example>
           <P>
+            <b>Es bleibt ein Spiel.</b> Es gibt nur eine Frage, einen Showdown und eine Lösung – nur der Pot ist in zwei Stapel geteilt:
+          </P>
+          <List
+            items={[
+              'Anna bleibt bis zum Showdown dabei, setzt aber nichts mehr. Sie hat ja keine Chips mehr.',
+              'Ben und Clara setzen in den nächsten Setzrunden weiter – alles davon wandert in den Nebentopf.',
+              'Beim Showdown deckt Anna mit auf. Liegt sie am nächsten dran, gewinnt sie den Haupttopf. Den Nebentopf bekommt, wer von Ben und Clara näher dran ist.',
+              'Steigt Ben unterwegs aus, bekommt Clara den Nebentopf sofort. Um den Haupttopf geht es trotzdem im Showdown: Anna gegen Clara.',
+            ]}
+          />
+          <P>
+            <b>Steigen alle außer der Person aus, die all-in ist,</b> gewinnt sie den Pot. Mehr als sie selbst gesetzt hat, kann sie dabei
+            von niemandem bekommen: Einsätze, die niemand mitgehen konnte oder wollte, gehen an die Person zurück, die sie gesetzt hat.
+          </P>
+          <P>
             Ist ein All-in kleiner als eine volle Erhöhung, dürfen die anderen nur mitgehen – wer schon gehandelt hat, darf deswegen nicht
             erneut erhöhen.
           </P>
+          <Note>Die App rechnet Haupt- und Nebentöpfe selbst aus und fragt beim Showdown für jeden Topf, wer ihn gewinnt.</Note>
         </Chapter>
 
         <Chapter icon="spade" title="Showdown" summary="Wer gewinnt den Pot?">

@@ -1,7 +1,7 @@
 import { formatAnswer } from '../lib/format'
 import type { Category, Game, Player, PlayRecord, Question } from '../lib/types'
 import { blindInfo, levelAt } from './blinds'
-import { actionLabel, nextBlinds, settle, viewHand } from './chips'
+import { actionLabel, settle, tablePositions, viewHand } from './chips'
 import type { DisplayChips, DisplayState, GameState } from './types'
 
 /** Wer am Tisch sitzt und wer welche Frage schon kennt. */
@@ -116,7 +116,7 @@ export function displayChips(state: GameState, players: Player[]): DisplayChips 
   const inHand = !!hand && (state.phase === 'round' || state.phase === 'showdown')
   const view = hand ? viewHand(chips, hand, state.phase === 'showdown' ? 3 : state.reveal) : null
   const result = hand && view && state.phase === 'showdown' ? settle(chips, hand, view) : null
-  const blinds = hand ? { sb: hand.sb, bb: hand.bb } : nextBlinds(chips)
+  const blinds = tablePositions(chips)
   const delta = result?.delta ?? (!hand ? chips.last : null)
   return {
     pot: inHand && view ? view.pot : 0,
@@ -133,6 +133,7 @@ export function displayChips(state: GameState, players: Player[]): DisplayChips 
         allIn: inHand && !!view?.allIn.includes(id),
         out: stack === 0 && !(inHand && view?.live.includes(id)),
         blind: id === blinds.bb ? 'bb' : id === blinds.sb ? 'sb' : null,
+        dealer: id === blinds.dealer,
         toAct: state.phase === 'round' && !state.decided && view?.next === id,
         action: inHand && state.phase === 'round' && view?.last[id] ? actionLabel(view.last[id], view.street[id]) : null,
         delta: delta?.[id] ?? null,
